@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>大坂式 ポイントカードメーカー — v23</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+  :root{
+    /* === 大坂式ツール 共通デザイントークン（商品開発ツールと共有） === */
+    --red:     #b5292a;
+    --red-dk:  #7a1515;
+    --red-lt:  #f5e8e8;
+    --gold:    #c9900a;
+    --gold-lt: #fdf3d0;
+    --ink:     #1c1208;
+    --ink2:    #4a3828;
+    --paper:   #faf6f0;
+    --paper2:  #f2ebe0;
+    --border:  #ddd0b8;
+    --muted:   #9a8870;
+    --green:   #2a7040;
+    --green-lt:#e8f5ee;
+    --blue-lt: #e8f0f8;
+    --blue:    #2a60a0;
+    /* 既存クラスとの互換エイリアス */
+    --stamp: var(--red);
+    --line-green: var(--green);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Noto Sans JP', sans-serif;}
+
+  /* ══ HEADER（商品開発ツールと共通構造） ══ */
+  .hdr{background:var(--red-dk); position:sticky; top:0; z-index:300; box-shadow:0 3px 16px rgba(0,0,0,.35);}
+  .hdr-top{display:flex; align-items:center; gap:10px; padding:12px 20px 10px; border-bottom:1px solid rgba(255,255,255,.08);}
+  .hdr-badge{background:var(--gold); color:white; font-size:14px; font-weight:900; padding:6px 12px; border-radius:4px; letter-spacing:.1em; flex-shrink:0;}
+  .hdr-title{color:white; font-size:15px; font-weight:900; letter-spacing:.04em;}
+  .hdr-sub{color:rgba(255,255,255,.55); font-size:10px; margin-top:1px;}
+
+  .tabs{display:flex; background:var(--red-dk);}
+  .tabs button{
+    background:none; border:none; color:rgba(255,255,255,.45); font-family:inherit; font-size:12px; font-weight:700;
+    padding:10px 22px; cursor:pointer; border-bottom:3px solid transparent; letter-spacing:.02em; transition:all .2s;
+  }
+  .tabs button.active{color:var(--gold); border-bottom-color:var(--gold);}
+  .tabs button:hover{color:#fff;}
+
+  .page-shell{max-width:980px; margin:0 auto; padding:20px 20px 60px; background:var(--paper); min-height:calc(100vh - 92px);}
+  .page{display:none;}
+  .page.active{display:block;}
+  .sub{font-size:11px; color:var(--muted); letter-spacing:.07em;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:11px; color:var(--muted); margin-bottom:6px; letter-spacing:.05em; font-weight:700;}
+  .field select{width:100%; padding:7px 8px; border:1.5px solid var(--border); border-radius:7px; background:#fff; font-size:12px; font-family:inherit;}
+
+  /* ══ CARD（商品開発ツールと共通） ══ */
+  .card{background:#fff; border-radius:10px; border:1px solid var(--border); padding:12px; margin-bottom:12px; box-shadow:0 1px 6px rgba(0,0,0,.05);}
+  .card-hd{display:flex; align-items:center; gap:7px; margin-bottom:10px;}
+  .card-hd-bar{width:3px; height:14px; background:var(--red); border-radius:2px; flex-shrink:0;}
+  .card-hd-txt{font-size:12px; font-weight:900; color:var(--ink); letter-spacing:.05em;}
+  .card-hd-sub{font-size:10px; color:var(--muted); margin-left:4px;}
+
+  .section-head{font-size:12px; font-weight:900; color:var(--ink); border-left:3px solid var(--red); padding-left:8px; margin:0 0 14px;}
+
+  .face-switch{display:flex; gap:8px; margin-bottom:18px;}
+  .face-switch button{flex:1; padding:9px 0; font-size:12px; font-family:inherit; font-weight:700; border:1.5px solid var(--border); background:#fff; color:var(--muted); cursor:pointer; border-radius:7px;}
+  .face-switch button.active{background:var(--red); border-color:var(--red); color:#fff;}
+
+  .add-row{display:flex; gap:8px; margin-bottom:18px;}
+  .add-row button{flex:1; font-size:11px; font-weight:700; padding:9px 4px; border:1.5px dashed var(--border); background:transparent; color:var(--muted); border-radius:7px; cursor:pointer; font-family:inherit; transition:all .15s;}
+  .add-row button:hover{background:var(--paper2); border-color:var(--red); color:var(--red);}
+
+  .swatches{display:flex; gap:8px; flex-wrap:wrap;}
+  .swatch-item{width:50px; text-align:center;}
+  .swatch{width:42px; height:42px; border-radius:50%; cursor:pointer; border:3px solid transparent; margin:0 auto; box-shadow:0 2px 8px rgba(0,0,0,.15); transition:all .2s;}
+  .swatch.active{border-color:var(--red); transform:scale(1.08);}
+  .swatch[data-bg="0"]{background:#ffffff;}
+  .swatch[data-bg="1"]{background:linear-gradient(135deg,#F2E9D8,#E2CE9F);}
+  .swatch[data-bg="2"]{background:linear-gradient(135deg,#2B2420,#4A3C30);}
+  .swatch[data-bg="3"]{background:linear-gradient(135deg,#F4ECE0,#D8C7A6);}
+  .ink-label{font-size:9px; color:var(--muted); margin-top:3px; line-height:1.3;}
+  .ink-label.high{color:var(--red);}
+
+  .selected-box-panel{border-top:1px dashed var(--border); margin-top:18px; padding-top:14px;}
+  .selected-box-panel h3{font-size:12px; font-weight:900; color:var(--ink); border-left:3px solid var(--red); padding-left:8px; margin:0 0 10px; letter-spacing:.03em;}
+  #selectedPanel .none{font-size:11px; color:#bbb;}
+  .row2{display:flex; gap:8px;}
+  .row2 > div{flex:1;}
+
+  .hint{font-size:11px; color:var(--muted); line-height:1.7; margin-top:18px; border-top:1px dashed var(--border); padding-top:12px;}
+
+  .stage{display:flex; flex-direction:column; align-items:center; padding:18px 16px; overflow:auto; background:var(--paper);}
+  .eyebrow{font-size:11px; letter-spacing:.12em; color:var(--muted); margin-bottom:14px; font-weight:700;}
+  .card-outer-scaler{position:relative; width:100%; max-width:728px; margin:0 auto;}
+  .card-outer{position:absolute; top:0; left:0; width:728px; height:220px; box-shadow:0 6px 28px rgba(0,0,0,.2); border-radius:10px; overflow:hidden; transform-origin:top left;}
+  #card{width:100%; height:100%; position:relative; background:linear-gradient(135deg,#F2E9D8,#E2CE9F);}
+  #frontFace, #backFace{position:absolute; inset:0; width:100%; height:100%;}
+  /* スナップガイドライン */
+  .snap-guide{
+    position:absolute; pointer-events:none; z-index:60;
+    background:rgba(220,50,50,0.7);
+  }
+  .snap-guide.h{ left:0; width:100%; height:1px; }
+  .snap-guide.v{ top:0; height:100%; width:1px; }
+  /* 折り目ガイドライン（編集画面のみ・印刷・プレビュー非表示） */
+  #foldGuide{
+    position:absolute; top:0; left:50%; width:0; height:100%;
+    border-left:2px dashed rgba(180,60,60,0.55);
+    pointer-events:none; z-index:50;
+    transform:translateX(-1px);
+  }
+  #foldGuide::before{
+    content:'◀ 左面　右面 ▶';
+    position:absolute; top:4px; left:50%;
+    transform:translateX(-50%);
+    font-size:9px; font-weight:700; color:rgba(180,60,60,0.7);
+    white-space:nowrap; letter-spacing:.05em;
+    background:rgba(255,255,255,0.75); padding:1px 6px; border-radius:4px;
+  }
+
+  /* generic movable element shell */
+  .obj{position:absolute; cursor:grab; user-select:none;}
+  .obj.dragging{cursor:grabbing;}
+  .obj.selected{outline:1.5px dashed var(--red); outline-offset:3px;}
+  .resize-handle{
+    position:absolute; right:-9px; bottom:-9px; width:20px; height:20px; border-radius:50%;
+    background:var(--red); border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.4);
+    cursor:nwse-resize; z-index:5; display:none;
+  }
+  .obj.selected .resize-handle{display:block;}
+
+  .qr-obj .sq{width:100%; height:100%; border-radius:4px; border:1px solid #C9BBA0; background:repeating-conic-gradient(#2B2420 0% 25%, #fff 0% 50%) 0/8px 8px;}
+  .qr-obj.google .sq{background:repeating-conic-gradient(#1a1a1a 0% 25%, #fff 0% 50%) 0/8px 8px;}
+  .qr-obj.line .sq{background:repeating-conic-gradient(var(--green) 0% 25%, #eafff1 0% 50%) 0/8px 8px;}
+  .qr-obj.qr-empty .sq{
+    background:var(--paper2); border:2px dashed var(--border); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:3px; text-align:center; cursor:pointer;
+  }
+  .qr-obj.qr-empty:hover .sq{border-color:var(--red); background:var(--red-lt);}
+  .qr-upload-ico{font-size:22px; line-height:1;}
+  .qr-upload-txt{font-size:10px; color:var(--muted); line-height:1.35; padding:0 6px;}
+
+  .text-obj{padding:2px 4px; line-height:1.3; white-space:pre-wrap; min-width:30px; min-height:18px;}
+  .text-obj[contenteditable=true]:focus{outline:1.5px solid var(--red); outline-offset:2px; cursor:text;}
+  [contenteditable=true]:focus{cursor:text;}
+  .text-obj.guide{color:#B59A6E; background:rgba(181,154,110,.08);}
+  .text-obj.fixedok{color:var(--ink);}
+
+  .stamp-cell{width:100%; height:100%; border:4px solid var(--ink); border-radius:8px; background:#fafafa; box-sizing:border-box;}
+  .stamp-shape-obj.stamp-hl .stamp-cell{border-color:var(--red); background:var(--red-lt);}
+  .stamp-circle{border-radius:50%;}
+  .stamp-strip{display:flex; width:100%; height:100%;}
+  .stamp-strip .stamp-cell{flex:1; border-radius:0; border-left-width:0;}
+  .stamp-strip .stamp-cell:first-child{border-radius:6px 0 0 6px; border-left-width:2px;}
+  .stamp-strip .stamp-cell:last-child{border-radius:0 6px 6px 0;}
+
+  .actions{margin-top:20px; display:flex; gap:10px; width:728px; max-width:100%;}
+  button.primary, button.secondary{font-family:inherit; font-size:12px; font-weight:700; padding:10px 18px; border-radius:8px; border:1.5px solid var(--border); cursor:pointer; background:#fff; color:var(--muted); flex:1; transition:all .15s;}
+  button.primary{background:linear-gradient(110deg,var(--red-dk),var(--red)); border:none; color:#fff;}
+  button.secondary:hover{background:var(--paper2);}
+
+  .panel-right{padding:20px; background:var(--paper);}
+  .panel-right h2{font-size:12px; font-weight:900; color:var(--ink); border-left:3px solid var(--red); padding-left:8px; margin:0 0 12px;}
+  .a4-preview{width:100%; aspect-ratio:210/297; background:#fff; border:1px solid var(--border); border-radius:8px; display:grid; grid-template-rows:repeat(5,1fr); gap:5px; padding:10px;}
+  .a4-preview .mini{background:linear-gradient(135deg,#F2E9D8,#E2CE9F); border-radius:2px; position:relative;}
+  .a4-note{font-size:11px; color:var(--muted); margin-top:12px; line-height:1.7;}
+  .badge{display:inline-block; font-size:10px; background:var(--gold-lt); color:#8a6a10; padding:2px 8px; border-radius:10px; margin-top:14px; font-weight:700;}
+
+  /* settings overlay */
+  .settings-btn{width:100%; padding:9px 0; font-size:12px; font-weight:700; font-family:inherit; border:1.5px solid var(--border); background:#fff; color:var(--muted); cursor:pointer; border-radius:7px; margin-bottom:18px;}
+  .settings-overlay{
+    position:fixed; inset:0; background:rgba(28,18,8,.55); display:none; align-items:center; justify-content:center; z-index:100;
+  }
+  .settings-overlay.open{display:flex;}
+  .settings-modal{
+    width:760px; max-height:84vh; overflow-y:auto; background:var(--paper); border-radius:12px; padding:26px 30px; box-shadow:0 20px 60px rgba(0,0,0,.4);
+  }
+  .settings-modal h2{font-size:16px; font-weight:900; margin:0 0 4px;}
+  .settings-modal .sub{font-size:11px; color:var(--muted); margin-bottom:20px;}
+  .settings-tabs{display:flex; gap:6px; margin-bottom:18px;}
+  .settings-tabs button{font-size:12px; font-weight:700; padding:8px 14px; border:1.5px solid var(--border); background:#fff; color:var(--muted); border-radius:20px; cursor:pointer; font-family:inherit;}
+  .settings-tabs button.active{background:var(--red); border-color:var(--red); color:#fff;}
+  .settings-pane{display:none;}
+  .settings-pane.active{display:block;}
+  .reg-form{display:flex; gap:10px; align-items:flex-end; margin-bottom:16px; flex-wrap:wrap; background:#fff; padding:14px; border-radius:10px; border:1px solid var(--border);}
+  .reg-form .f{display:flex; flex-direction:column; gap:4px;}
+  .reg-form label{font-size:10px; color:var(--muted); font-weight:700;}
+  .reg-form input[type=text], .reg-form select{padding:7px 9px; border:1.5px solid var(--border); border-radius:7px; font-size:12px; font-family:inherit;}
+  .reg-form input[type=file]{font-size:11px;}
+  .reg-form button{font-size:12px; font-weight:900; padding:9px 16px; border:none; background:var(--red); color:#fff; border-radius:8px; cursor:pointer; font-family:inherit;}
+  .asset-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+  .asset-card{background:#fff; border:1px solid var(--border); border-radius:8px; padding:8px; text-align:center;}
+  .asset-card img{width:100%; height:60px; object-fit:contain; background:var(--paper2); border-radius:5px;}
+  .asset-card .nm{font-size:10px; margin:6px 0 4px; color:var(--ink); word-break:break-all;}
+  .asset-card .btns{display:flex; gap:4px;}
+  .asset-card .btns button{flex:1; font-size:9px; font-weight:700; padding:5px; border:1.5px solid var(--border); background:transparent; color:var(--muted); border-radius:6px; cursor:pointer; font-family:inherit;}
+  .asset-card .btns button.del{color:var(--red); border-color:var(--red-lt);}
+  .asset-empty{font-size:11px; color:var(--muted); grid-column:1/-1; text-align:center; padding:20px 0;}
+  .iojson-row{display:flex; gap:10px; margin-top:10px;}
+  .iojson-row button{font-size:12px; padding:9px 16px; border:1px solid var(--ink); background:transparent; border-radius:3px; cursor:pointer; font-family:inherit;}
+  .close-modal{float:right; font-size:18px; background:none; border:none; cursor:pointer; color:var(--muted);}
+
+  /* asset tray (tap to place, like the product-dev tool) */
+  .asset-tray{width:728px; max-width:100%; margin-top:24px; background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px; box-shadow:0 1px 6px rgba(0,0,0,.05);}
+  .asset-tray h3{font-size:12px; font-weight:900; color:var(--ink); border-left:3px solid var(--red); padding-left:8px; margin:0 0 10px; letter-spacing:.03em;}
+  .tray-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+  .tray-tabs button{font-size:11px; font-weight:700; padding:5px 12px; border:1.5px solid var(--border); background:#fff; border-radius:20px; cursor:pointer; font-family:inherit; color:var(--muted);}
+  .tray-tabs button.active{background:var(--red); border-color:var(--red); color:#fff;}
+  .tray-grid{display:flex; gap:10px; flex-wrap:wrap; min-height:64px;}
+  .tray-item{width:64px; text-align:center; cursor:pointer; border:1.5px solid var(--border); border-radius:8px; padding:5px; background:var(--paper); transition:all .15s;}
+  .tray-item:hover{border-color:var(--red); background:var(--red-lt); transform:scale(.96);}
+  .tray-item img{width:56px; height:40px; object-fit:contain; background:var(--paper2); border-radius:4px;}
+  .tray-item .nm{font-size:9px; margin-top:3px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .tray-empty{font-size:11px; color:var(--muted); padding:10px 0;}
+  @media (max-width: 640px){
+    .hdr-top{padding:10px 14px 8px;}
+    .hdr-title{font-size:13px;}
+    .tabs{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+    .tabs button{padding:9px 14px; white-space:nowrap; font-size:11px;}
+    .page-shell{padding:14px 12px 50px;}
+    .reg-form{flex-direction:column; align-items:stretch;}
+    .reg-form .f{width:100%;}
+    .asset-grid{grid-template-columns:repeat(2,1fr);}
+    .settings-tabs{overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap;}
+    .settings-tabs button{white-space:nowrap;}
+    .tray-grid{justify-content:flex-start;}
+  }
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-badge">紙</div>
+    <div>
+      <div class="hdr-title" id="hdrTitle">ポイントカードメーカー</div>
+      <div class="hdr-sub">販促ツール v1　見開き名刺サイズ 182×55mm</div>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="active" id="tabEdit">🖊 編集</button>
+    <button id="tabPreview">🖨 プレビュー</button>
+    <button id="tabSettings">⚙ 設定</button>
+  </div>
+</div>
+
+<div class="page-shell">
+
+  <!-- ════ PAGE: 編集 ════ -->
+  <div class="page active" id="page-edit">
+
+    <div class="card">
+      <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt">面を選ぶ</div></div>
+      <div class="face-switch" style="margin-bottom:0;">
+        <button class="active" id="btnFront">表面</button>
+        <button id="btnBack">裏面</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt" id="stageLabel">CARD EDITOR — 表面</div></div>
+      <div class="stage">
+        <div class="card-outer-scaler" id="cardOuterScaler">
+          <div class="card-outer" id="cardOuter">
+            <div id="card">
+              <div id="foldGuide"></div>
+              <div id="frontFace"></div>
+              <div id="backFace" style="display:none;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary" id="btnExport" style="flex:1;">PDF書き出し（5面付け）</button>
+        </div>
+        <div class="actions" style="margin-top:6px;">
+          <button class="secondary" id="btnUndo" style="flex:1; font-size:11px; color:var(--muted);" disabled>↩ 元に戻す（Ctrl+Z）</button>
+          <span id="undoCount" style="font-size:10px; color:var(--muted); padding:0 8px; align-self:center;">0 / 20</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="selectedPanel">
+      <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt">選択中のパーツ</div></div>
+      <div class="none" id="noneMsg">カード上のテキストやQRをクリックして選択</div>
+      <button class="primary" id="btnCopyObj" style="display:none; width:100%; margin-bottom:10px; font-size:12px;">📋 このパーツをコピー（複製）</button>
+      <div id="textControls" style="display:none;">
+        <div class="field">
+          <label style="font-size:10px; font-weight:700; color:var(--muted);">テキスト内容（ここで直接編集できます）</label>
+          <textarea id="textEditArea" rows="3" style="width:100%; font-size:12px; font-family:inherit; padding:7px 9px; border:1.5px solid var(--red); border-radius:7px; resize:vertical; line-height:1.6; box-sizing:border-box;"></textarea>
+        </div>
+        <div class="field">
+          <label>フォント</label>
+          <select id="fontSelect">
+            <option value="'Zen Kaku Gothic New', sans-serif">ゴシック体</option>
+            <option value="'Hiragino Mincho ProN','Yu Mincho',serif">明朝体（毛筆風）</option>
+            <option value="'Hiragino Kaku Gothic ProN',sans-serif">角ゴシック</option>
+          </select>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>文字色</label>
+            <div style="display:flex; gap:5px; align-items:center;">
+              <input type="color" id="colorPicker" style="width:36px; height:30px; padding:1px; border:1.5px solid var(--border); border-radius:5px; cursor:pointer; background:#fff;">
+              <select id="colorSelect" style="flex:1;">
+                <option value="#2B2420">墨色</option>
+                <option value="#A8302A">朱色</option>
+                <option value="#2F8F5B">緑</option>
+                <option value="#2060b0">青</option>
+                <option value="#a040a0">紫</option>
+                <option value="#ffffff">白</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>太さ</label>
+            <select id="weightSelect">
+              <option value="400">標準</option>
+              <option value="700">太字</option>
+              <option value="900">極太</option>
+            </select>
+          </div>
+        </div>
+        <div class="row2" style="margin-top:6px;">
+          <div class="field">
+            <label>フォントサイズ（px）</label>
+            <div style="display:flex; gap:5px; align-items:center;">
+              <button id="btnFontMinus" style="width:28px; height:28px; font-size:14px; font-weight:700; border:1.5px solid var(--border); background:#fff; border-radius:5px; cursor:pointer; flex-shrink:0;">−</button>
+              <input type="number" id="fontSizeInput" min="6" max="120" style="flex:1; padding:4px 6px; font-size:12px; border:1.5px solid var(--border); border-radius:5px; text-align:center; font-family:inherit;">
+              <button id="btnFontPlus" style="width:28px; height:28px; font-size:14px; font-weight:700; border:1.5px solid var(--border); background:#fff; border-radius:5px; cursor:pointer; flex-shrink:0;">＋</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>重なり順</label>
+            <div style="display:flex; gap:5px;">
+              <button id="btnBringFront" style="flex:1; font-size:10px; padding:6px 4px; border:1.5px solid var(--border); background:#fff; border-radius:5px; cursor:pointer; font-family:inherit;" title="最前面へ">▲ 前面</button>
+              <button id="btnSendBack" style="flex:1; font-size:10px; padding:6px 4px; border:1.5px solid var(--border); background:#fff; border-radius:5px; cursor:pointer; font-family:inherit;" title="最背面へ">▼ 背面</button>
+            </div>
+          </div>
+        </div>
+        <button class="secondary" id="btnDeleteText" style="width:100%; font-size:11px; margin-top:6px;">このテキストを削除</button>
+      </div>
+      <div id="qrControls" style="display:none;">
+        <div class="field">
+          <label>QRの種類</label>
+          <select id="qrTypeSelect">
+            <option value="google">Google口コミ（仮）</option>
+            <option value="line">公式LINE（仮）</option>
+            <option value="generic">その他QR（仮）</option>
+          </select>
+        </div>
+        <button class="secondary" id="btnDeleteQR" style="width:100%; font-size:11px;">このQRを削除</button>
+      </div>
+      <div id="stampControls" style="display:none;">
+        <div class="field" style="font-size:11px; color:var(--muted); line-height:1.6;">
+          スタンプ枠（丸・四角・連結）は1つの図形パーツです。中に数字パーツを重ねて配置してください。
+        </div>
+        <button class="secondary" id="btnDeleteStamp" style="width:100%; font-size:11px;">このスタンプ枠を削除</button>
+      </div>
+      <div id="imgControls" style="display:none;">
+        <div class="field" style="font-size:11px; color:var(--muted); line-height:1.6;">
+          ロゴ画像パーツです。右下ハンドルで拡大縮小、ドラッグで移動できます。
+        </div>
+        <div style="display:flex; gap:5px; margin-bottom:6px;">
+          <button id="btnBringFrontImg" style="flex:1; font-size:10px; padding:6px 4px; border:1.5px solid var(--border); background:#fff; border-radius:5px; cursor:pointer; font-family:inherit;">▲ 前面へ</button>
+          <button id="btnSendBackImg" style="flex:1; font-size:10px; padding:6px 4px; border:1.5px solid var(--border); background:#fff; border-radius:5px; cursor:pointer; font-family:inherit;">▼ 背面へ</button>
+        </div>
+        <button class="secondary" id="btnDeleteImg" style="width:100%; font-size:11px;">このロゴ画像を削除</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt">素材を選ぶ</div><div class="card-hd-sub">タップで配置</div></div>
+      <div class="tray-tabs" id="trayTabs"></div>
+      <div class="tray-grid" id="trayGrid"></div>
+    </div>
+
+    <div class="card" style="background:var(--paper2); border:1.5px dashed var(--border);">
+      <div style="font-size:11px; color:var(--muted); line-height:1.8;">
+        <b style="color:#B59A6E;">点線・薄茶色の文字</b> = 自店用に書き換えてください<br>
+        <b style="color:var(--ink);">通常の黒文字</b> = そのまま使える例文です<br><br>
+        QRとテキストは別パーツです。クリックして選択→右下ハンドルで拡大縮小、ドラッグで移動。テキストはダブルクリックで文字編集、空のQR枠はダブルクリックで自店のQR画像をアップロードできます。
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════ PAGE: プレビュー ════ -->
+  <div class="page" id="page-preview">
+    <div class="card">
+      <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt">どちらの面を見る？</div></div>
+      <div class="face-switch">
+        <button class="active" id="btnFrontPreview">表面</button>
+        <button id="btnBackPreview">裏面</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt" id="previewLabel">A4プレビュー — 表面（見開き名刺サイズ × 5面）</div></div>
+      <div class="a4-preview" id="a4Preview"></div>
+      <div class="a4-note">5面付けでA4に配置したイメージです。表裏は別々にPDF書き出しして両面印刷する想定です。</div>
+      <div class="badge">DEMO BUILD — パーツ独立編集版</div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: 設定 ════ -->
+  <div class="page" id="page-settings">
+    <div class="card">
+      <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt">設定 — ロゴ・QR登録 / 共有</div></div>
+      <div class="sub" style="margin-bottom:16px;">ここで登録した素材は「編集」タブの「素材を選ぶ」からタップで配置できます。全部まとめてJSONで書き出して、他の店舗に共有できます。</div>
+
+      <div class="reg-form" style="margin-bottom:20px;">
+        <div class="f" style="flex:1;"><label>ツール名（配布先によって変更可）</label><input type="text" id="toolNameInput" placeholder="例：居酒屋ポイントカードメーカー" style="width:100%;"></div>
+        <button id="btnApplyToolName">反映</button>
+      </div>
+      <div style="margin-bottom:16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div style="color:var(--green); font-size:11px;">💾 このブラウザに自動保存されています（登録・変更のたびに保存）</div>
+        <div id="storageBar" style="display:flex; align-items:center; gap:8px;">
+          <div style="width:120px; height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
+            <div id="storageBarFill" style="height:100%; background:var(--green); border-radius:4px; transition:width .3s;"></div>
+          </div>
+          <div id="storageLabel" style="font-size:11px; color:var(--muted);"></div>
+        </div>
+      </div>
+
+      <div class="settings-tabs">
+        <button class="active" data-pane="paneLogo">ロゴ（業態別）</button>
+        <button data-pane="paneQR">QR（店舗別）</button>
+        <button data-pane="paneBG">背景（柄・パターン）</button>
+        <button data-pane="paneStamp">スタンプ枠（画像）</button>
+        <button data-pane="paneIO">書き出し・読み込み</button>
+      </div>
+
+      <div class="settings-pane active" id="paneLogo">
+        <div class="reg-form">
+          <div class="f"><label>業態</label>
+            <select id="logoCategorySelect">
+              <option value="izakaya">居酒屋</option>
+              <option value="asian">Asian</option>
+              <option value="italian">Italian</option>
+              <option value="spanish">Spanish</option>
+              <option value="american">American</option>
+              <option value="steakhouse">Steak house</option>
+              <option value="mexican">Mexican</option>
+              <option value="meatbar">Meat Bar</option>
+              <option value="chinese">Chinese</option>
+              <option value="yakiniku">Yakiniku</option>
+            </select>
+          </div>
+          <div class="f"><label>店舗名</label><input type="text" id="logoNameInput" placeholder="例：三代目文治"></div>
+          <div class="f"><label>ロゴ画像</label><input type="file" id="logoFileInput" accept="image/*"></div>
+          <button id="btnAddLogoAsset">登録</button>
+        </div>
+        <div class="asset-grid" id="logoGrid"><div class="asset-empty">まだ登録されたロゴがありません</div></div>
+      </div>
+
+      <div class="settings-pane" id="paneQR">
+        <div class="reg-form">
+          <div class="f"><label>店舗名</label><input type="text" id="qrStoreNameInput" placeholder="例：大衆中華 饉ト饟"></div>
+          <div class="f"><label>Google口コミQR</label><input type="file" id="qrGoogleFileInput" accept="image/*"></div>
+          <div class="f"><label>公式LINE QR</label><input type="file" id="qrLineFileInput" accept="image/*"></div>
+          <button id="btnAddQRAsset">登録</button>
+        </div>
+        <div class="asset-grid" id="qrGrid"><div class="asset-empty">まだ登録された店舗QRがありません</div></div>
+      </div>
+
+      <div class="settings-pane" id="paneBG">
+        <div class="reg-form">
+          <div class="f"><label>背景名</label><input type="text" id="bgNameInput" placeholder="例：和紙テクスチャ"></div>
+          <div class="f"><label>背景画像（柄・パターン）</label><input type="file" id="bgFileInput" accept="image/*"></div>
+          <button id="btnAddBGAsset">登録</button>
+        </div>
+        <div class="asset-grid" id="bgGrid"><div class="asset-empty">まだ登録された背景がありません</div></div>
+      </div>
+
+      <div class="settings-pane" id="paneStamp">
+        <div class="sub" style="margin-bottom:12px;">毛筆風など、こだわりのスタンプ枠画像（透過PNG推奨）をここに登録すると、「素材を選ぶ」のスタンプ枠タブから配置できます。</div>
+        <div class="reg-form">
+          <div class="f"><label>名前</label><input type="text" id="stampNameInput" placeholder="例：毛筆風 四角"></div>
+          <div class="f"><label>スタンプ枠画像</label><input type="file" id="stampFileInput" accept="image/*"></div>
+          <button id="btnAddStampAsset">登録</button>
+        </div>
+        <div class="asset-grid" id="stampGrid2"><div class="asset-empty">まだ登録されたスタンプ枠がありません</div></div>
+      </div>
+
+      <div class="settings-pane" id="paneIO">
+        <p style="font-size:12px; line-height:1.7;">このブラウザでの登録内容は自動保存されますが、<b>他のパソコン・他の店舗に配るときはこのJSONを使います。</b>登録したロゴ・QR・背景・スタンプ枠・ツール名をまとめて1つのファイルに書き出せます。</p>
+
+        <!-- ── 書き出し ── -->
+        <div style="font-size:12px; font-weight:900; color:var(--ink); border-left:3px solid var(--red); padding-left:8px; margin:0 0 10px;">📤 書き出し</div>
+        <div class="iojson-row">
+          <button id="btnExportJSON">📋 JSONを表示してコピー</button>
+        </div>
+        <div id="jsonExportArea" style="display:none; margin-top:12px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+            <span style="font-size:11px; font-weight:700; color:var(--ink);">👇 全部選択してコピーしてください</span>
+            <button id="btnCopyJSON" style="font-size:11px; padding:5px 12px; background:var(--red); color:#fff; border:none; border-radius:6px; cursor:pointer; font-family:inherit; font-weight:700;">全選択してコピー</button>
+          </div>
+          <textarea id="jsonExportText" readonly style="width:100%; height:160px; font-size:10px; font-family:monospace; padding:8px; border:1.5px solid var(--border); border-radius:6px; background:var(--paper2); resize:none; line-height:1.4;"></textarea>
+          <p style="font-size:11px; color:var(--muted); margin-top:6px;">コピーしたテキストをメモ帳などに貼り付けて保存するか、下の「テキストを貼って読み込む」で他の端末に移行できます。</p>
+        </div>
+
+        <!-- ── 読み込み ── -->
+        <div style="font-size:12px; font-weight:900; color:var(--ink); border-left:3px solid var(--blue); padding-left:8px; margin:20px 0 10px;">📥 読み込み</div>
+
+        <!-- ① ファイルから読み込む -->
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; font-weight:700; color:var(--muted); margin-bottom:6px;">① JSONファイルから読み込む</div>
+          <div class="iojson-row">
+            <button id="btnImportJSONTrigger">⬆ ファイルを選択して読み込む</button>
+            <input type="file" id="importJSONFile" accept="application/json" style="display:none;">
+          </div>
+        </div>
+
+        <!-- ② テキスト貼り付けで読み込む -->
+        <div style="background:var(--blue-lt); border:1.5px solid var(--blue); border-radius:8px; padding:14px;">
+          <div style="font-size:11px; font-weight:700; color:var(--blue); margin-bottom:6px;">② JSONテキストを貼り付けて読み込む <span style="font-weight:400; color:var(--muted);">（Chromeローカルファイル対応）</span></div>
+          <p style="font-size:11px; color:var(--ink2); line-height:1.7; margin:0 0 8px;">書き出したJSONテキストをコピーしてここに貼り付け、「読み込む」を押してください。</p>
+          <textarea id="jsonPasteArea" placeholder='{"logos":{},"qrs":{},"backgrounds":[],"stamps":[],...} ここにJSONを貼り付ける' style="width:100%; height:120px; font-size:10px; font-family:monospace; padding:8px; border:1.5px solid var(--blue); border-radius:6px; background:#fff; resize:vertical; line-height:1.4; box-sizing:border-box;"></textarea>
+          <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+            <button id="btnImportJSONPaste" style="flex:1; font-size:12px; font-weight:700; padding:9px 0; background:var(--blue); color:#fff; border:none; border-radius:7px; cursor:pointer; font-family:inherit;">✅ 貼り付けたJSONを読み込む</button>
+            <button id="btnClearPasteArea" style="font-size:11px; padding:9px 12px; background:#fff; color:var(--muted); border:1.5px solid var(--border); border-radius:7px; cursor:pointer; font-family:inherit;">クリア</button>
+          </div>
+          <div id="jsonPasteMsg" style="display:none; margin-top:8px; font-size:11px; font-weight:700; padding:7px 10px; border-radius:6px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const card = document.getElementById('card');
+const frontFace = document.getElementById('frontFace');
+const backFace = document.getElementById('backFace');
+const stageLabel = document.getElementById('stageLabel');
+let currentFace = 'front';
+let selectedEl = null;
+let objCounter = 0;
+
+const bgMap = {0:'#ffffff', 1:'linear-gradient(135deg,#F2E9D8,#E2CE9F)', 2:'linear-gradient(135deg,#2B2420,#4A3C30)', 3:'linear-gradient(135deg,#F4ECE0,#D8C7A6)'};
+
+// ===================== 設定データ(プリセットより前に宣言必須) =====================
+const assetStore = { logos:{}, qrs:{}, backgrounds:[], stamps:[] };
+let toolName = 'ポイントカードメーカー';
+const STORAGE_KEY = 'pointcard_tool_v1';
+
+function updateStorageDisplay(byteLen){
+  const kb = Math.round(byteLen / 1024);
+  const maxKb = 5120;
+  const pct = Math.min(100, (kb / maxKb) * 100);
+  const fill = document.getElementById('storageBarFill');
+  const label = document.getElementById('storageLabel');
+  if(!fill || !label) return;
+  fill.style.width = pct+'%';
+  fill.style.background = pct > 80 ? 'var(--red)' : pct > 50 ? 'var(--gold)' : 'var(--green)';
+  label.textContent = kb+'KB / 5MB ('+ Math.round(pct) +'%)';
+  label.style.color = pct > 80 ? 'var(--red)' : 'var(--muted)';
+}
+// ══════════════════════════════════════════
+// Undo システム（最大20スナップショット）
+// ══════════════════════════════════════════
+const UNDO_MAX = 20;
+let undoStack = [];
+let undoLocked = false; // 復元中は保存しない
+
+function saveSnapshot(){
+  if(undoLocked) return;
+  const snap = {
+    front: serializeLayer(frontFace),
+    back:  serializeLayer(backFace),
+    frontBg: faceBackground.front,
+    backBg:  faceBackground.back,
+  };
+  // 同じ状態を連続保存しない（軽量化）
+  const snapStr = JSON.stringify(snap);
+  if(undoStack.length > 0 && JSON.stringify(undoStack[undoStack.length-1]) === snapStr) return;
+  undoStack.push(snap);
+  if(undoStack.length > UNDO_MAX) undoStack.shift();
+  updateUndoBtn();
+}
+
+function updateUndoBtn(){
+  const btn = document.getElementById('btnUndo');
+  const cnt = document.getElementById('undoCount');
+  if(!btn) return;
+  // スタックの最後は「現在の状態」なので戻れるのはlength-1まで
+  const canUndo = undoStack.length > 1;
+  btn.disabled = !canUndo;
+  btn.style.color = canUndo ? 'var(--ink)' : 'var(--muted)';
+  cnt.textContent = (undoStack.length - 1) + ' / ' + UNDO_MAX;
+}
+
+function performUndo(){
+  if(undoStack.length <= 1) return;
+  undoStack.pop(); // 現在の状態を捨てる
+  const snap = undoStack[undoStack.length - 1];
+  undoLocked = true;
+  restoreFromSerialized(snap);
+  undoLocked = false;
+  updateUndoBtn();
+}
+
+document.addEventListener('keydown', e=>{
+  if((e.ctrlKey || e.metaKey) && e.key === 'z'){
+    e.preventDefault();
+    performUndo();
+  }
+});
+
+function saveToLocalStorage(){
+  try{
+    const json = JSON.stringify({ assetStore, toolName });
+    localStorage.setItem(STORAGE_KEY, json);
+    updateStorageDisplay(json.length);
+  }catch(e){ console.warn('保存に失敗しました', e); }
+}
+function loadFromLocalStorage(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    if(d.assetStore){
+      assetStore.logos = d.assetStore.logos || {};
+      assetStore.qrs = d.assetStore.qrs || {};
+      assetStore.backgrounds = d.assetStore.backgrounds || [];
+      assetStore.stamps = d.assetStore.stamps || [];
+    }
+    if(d.toolName){ toolName = d.toolName; }
+  }catch(e){ console.warn('読込に失敗しました', e); }
+}
+function applyToolNameToHeader(){
+  document.getElementById('hdrTitle').textContent = toolName;
+  document.getElementById('toolNameInput').value = toolName;
+  document.title = toolName;
+}
+loadFromLocalStorage();
+applyToolNameToHeader();
+try{
+  const existing = localStorage.getItem(STORAGE_KEY);
+  if(existing) updateStorageDisplay(existing.length);
+}catch(e){}
+// ============================================================
+
+function currentLayer(){ return currentFace==='front' ? frontFace : backFace; }
+
+const CARD_W = 728, CARD_H = 220;
+let cardScale = 1;
+
+function updateCardScale(){
+  const scaler = document.getElementById('cardOuterScaler');
+  const outer = document.getElementById('cardOuter');
+  if(!scaler || !outer) return;
+  const w = scaler.clientWidth || scaler.offsetWidth || CARD_W;
+  const scale = Math.min(1, w / CARD_W);
+  cardScale = scale;
+  outer.style.transform = 'scale('+scale+')';
+  scaler.style.height = (CARD_H*scale) + 'px';
+}
+window.addEventListener('resize', updateCardScale);
+window.addEventListener('orientationchange', updateCardScale);
+
+function getXY(e){
+  if(e.touches && e.touches.length) return {x:e.touches[0].clientX, y:e.touches[0].clientY};
+  if(e.changedTouches && e.changedTouches.length) return {x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY};
+  return {x:e.clientX, y:e.clientY};
+}
+
+// ══════════════════════════════════════════
+// スナップガイドラインシステム
+// ══════════════════════════════════════════
+const SNAP_THRESH = 6; // スナップ距離(px)
+
+function getSnapPoints(layer){
+  const points = { xs:[], ys:[] };
+  // カード中心
+  points.xs.push(CARD_W/2);
+  points.ys.push(CARD_H/2);
+  // 左面・右面の中心
+  points.xs.push(CARD_W/4, CARD_W*3/4);
+  // カード端
+  points.xs.push(0, CARD_W);
+  points.ys.push(0, CARD_H);
+  // 他のオブジェクトのエッジ
+  layer.querySelectorAll('.obj').forEach(other=>{
+    const ox = parseFloat(other.style.left)||0;
+    const oy = parseFloat(other.style.top)||0;
+    const ow = other.offsetWidth;
+    const oh = other.offsetHeight;
+    points.xs.push(ox, ox+ow/2, ox+ow);
+    points.ys.push(oy, oy+oh/2, oy+oh);
+  });
+  return points;
+}
+
+function showGuides(card, guides){
+  clearGuides(card);
+  guides.forEach(g=>{
+    const el = document.createElement('div');
+    el.className = 'snap-guide '+(g.axis==='x' ? 'v' : 'h');
+    el.dataset.snapGuide = '1';
+    if(g.axis==='x') el.style.left = g.pos+'px';
+    else el.style.top = g.pos+'px';
+    card.appendChild(el);
+  });
+}
+
+function clearGuides(card){
+  card.querySelectorAll('[data-snap-guide]').forEach(el=>el.remove());
+}
+
+function snapValue(val, snapPoints, size){
+  // val = 左端位置, size = 幅or高さ
+  const center = val + size/2;
+  const right  = val + size;
+  let best = null, bestD = SNAP_THRESH+1;
+  snapPoints.forEach(sp=>{
+    // 左端合わせ
+    let d = Math.abs(val - sp);
+    if(d < bestD){ bestD=d; best={ snapped: sp, guide: sp }; }
+    // 中心合わせ
+    d = Math.abs(center - sp);
+    if(d < bestD){ bestD=d; best={ snapped: sp-size/2, guide: sp }; }
+    // 右端合わせ
+    d = Math.abs(right - sp);
+    if(d < bestD){ bestD=d; best={ snapped: sp-size, guide: sp }; }
+  });
+  return best;
+}
+
+function makeMovable(el){
+  let dragging=false, offX=0, offY=0;
+  function onStart(e){
+    if(e.target.classList.contains('resize-handle')) return;
+    if(el.classList.contains('text-obj') && el.isContentEditable && document.activeElement===el) return;
+    // クリックされた要素がどのレイヤーにいるか自動判定してcurrentFaceを補正
+    if(backFace.contains(el) && currentFace !== 'back') setFace('back');
+    else if(frontFace.contains(el) && currentFace !== 'front') setFace('front');
+    selectObj(el);
+    dragging=true; el.classList.add('dragging');
+    const r = el.getBoundingClientRect();
+    const p = getXY(e);
+    offX = p.x - r.left; offY = p.y - r.top;
+    if(e.cancelable) e.preventDefault();
+  }
+  function onMove(e){
+    if(!dragging) return;
+    const cardRect = card.getBoundingClientRect();
+    const p = getXY(e);
+    let xScreen = p.x - cardRect.left - offX;
+    let yScreen = p.y - cardRect.top - offY;
+    let x = xScreen / cardScale;
+    let y = yScreen / cardScale;
+    // テキストは縁ギリギリまで自由に配置できる（制限なし・表裏共通）
+    if(el.classList.contains('text-obj')){
+      x = Math.max(-60, Math.min(x, CARD_W - 10));
+      y = Math.max(-10, Math.min(y, CARD_H - 10));
+    } else {
+      const OVERHANG = 40;
+      x = Math.max(-el.offsetWidth + OVERHANG, Math.min(x, CARD_W - OVERHANG));
+      y = Math.max(-el.offsetHeight + OVERHANG, Math.min(y, CARD_H - OVERHANG));
+    }
+    // スナップ処理
+    const layer = currentLayer();
+    const pts = getSnapPoints(layer);
+    const guides = [];
+    const snapX = snapValue(x, pts.xs, el.offsetWidth);
+    const snapY = snapValue(y, pts.ys, el.offsetHeight);
+    if(snapX){ x = snapX.snapped; guides.push({axis:'x', pos: snapX.guide}); }
+    if(snapY){ y = snapY.snapped; guides.push({axis:'y', pos: snapY.guide}); }
+    showGuides(card, guides);
+
+    el.style.left = x+'px'; el.style.top = y+'px';
+    if(e.cancelable) e.preventDefault();
+  }
+  function onEnd(){ if(dragging){dragging=false; el.classList.remove('dragging'); clearGuides(card); saveSnapshot();} }
+
+  el.addEventListener('mousedown', onStart);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onEnd);
+  el.addEventListener('touchstart', onStart, {passive:false});
+  window.addEventListener('touchmove', onMove, {passive:false});
+  window.addEventListener('touchend', onEnd);
+}
+
+function makeResizable(el, handle, opts){
+  let resizing=false, startX=0, startW=0, startH=0, startFont=0, startScale=1;
+  function onStart(e){
+    e.stopPropagation();
+    if(e.cancelable) e.preventDefault();
+    resizing=true; startX=getXY(e).x;
+    startW=el.offsetWidth; startH=el.offsetHeight;
+    startFont = parseFloat(getComputedStyle(el).fontSize)||14;
+    startScale = parseFloat(el.dataset.scale||'1');
+  }
+  function onMove(e){
+    if(!resizing) return;
+    const dx = (getXY(e).x - startX) / cardScale;
+    const newW = Math.max(20, startW+dx);
+    const scale = newW/startW;
+    if(opts.type==='qr'){
+      el.style.width = newW+'px';
+      el.style.height = newW+'px';
+    } else if(opts.type==='img'){
+      el.style.width = newW+'px';
+      el.style.height = (startH*scale)+'px';
+    } else if(opts.type==='group'){
+      const newScale = Math.max(0.4, Math.min(2.5, startScale*scale));
+      el.dataset.scale = newScale;
+      el.style.transform = 'scale('+newScale+')';
+    } else {
+      // テキスト: 幅だけ変えて自動折り返し。フォントサイズはそのまま
+      el.style.width = Math.max(20, newW)+'px';
+      el.style.height = 'auto'; // 折り返しに応じて縦が自動伸縮
+    }
+    if(e.cancelable) e.preventDefault();
+  }
+  function onEnd(){ if(resizing){ resizing=false; saveSnapshot(); } }
+
+  handle.addEventListener('mousedown', onStart);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onEnd);
+  handle.addEventListener('touchstart', onStart, {passive:false});
+  window.addEventListener('touchmove', onMove, {passive:false});
+  window.addEventListener('touchend', onEnd);
+}
+
+function selectObj(el){
+  document.querySelectorAll('.obj').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedEl = el;
+  document.getElementById('noneMsg').style.display='none';
+  document.getElementById('btnCopyObj').style.display='';
+  document.getElementById('stampControls').style.display='none';
+  document.getElementById('imgControls').style.display='none';
+  if(el.classList.contains('text-obj')){
+    document.getElementById('textControls').style.display='';
+    document.getElementById('qrControls').style.display='none';
+    document.getElementById('fontSelect').value = el.style.fontFamily || "'Zen Kaku Gothic New', sans-serif";
+    const elColor = el.style.color || '#2B2420';
+    document.getElementById('colorSelect').value = elColor;
+    // カラーピッカーに現在色を反映（rgb→hex変換）
+    try{
+      const tmp = document.createElement('div');
+      tmp.style.color = elColor;
+      document.body.appendChild(tmp);
+      const rgb = getComputedStyle(tmp).color;
+      document.body.removeChild(tmp);
+      const m = rgb.match(/\d+/g);
+      if(m){ document.getElementById('colorPicker').value = '#'+m.slice(0,3).map(v=>parseInt(v).toString(16).padStart(2,'0')).join(''); }
+    }catch(e){}
+    document.getElementById('weightSelect').value = el.style.fontWeight || '400';
+    const fs = parseFloat(el.style.fontSize) || 13;
+    document.getElementById('fontSizeInput').value = Math.round(fs);
+    document.getElementById('textEditArea').value = el.innerText;
+  } else if(el.classList.contains('stamp-shape-obj')){
+    document.getElementById('textControls').style.display='none';
+    document.getElementById('qrControls').style.display='none';
+    document.getElementById('stampControls').style.display='';
+  } else if(el.classList.contains('img-obj')){
+    document.getElementById('qrControls').style.display='none';
+    document.getElementById('textControls').style.display='none';
+    document.getElementById('imgControls').style.display='';
+  } else {
+    document.getElementById('qrControls').style.display='';
+    document.getElementById('textControls').style.display='none';
+    document.getElementById('imgControls').style.display='none';
+    document.getElementById('qrTypeSelect').value = el.dataset.qrtype || 'generic';
+  }
+}
+function deselectIfBackground(e){
+  if(e.target===card || e.target===frontFace || e.target===backFace){
+    document.querySelectorAll('.obj').forEach(o=>o.classList.remove('selected'));
+    selectedEl=null;
+    document.getElementById('textControls').style.display='none';
+    document.getElementById('qrControls').style.display='none';
+    document.getElementById('stampControls').style.display='none';
+    document.getElementById('imgControls').style.display='none';
+    document.getElementById('btnCopyObj').style.display='none';
+    document.getElementById('noneMsg').style.display='';
+  }
+}
+card.addEventListener('mousedown', deselectIfBackground);
+card.addEventListener('touchstart', deselectIfBackground, {passive:true});
+
+function onDoubleTap(el, callback){
+  let lastTap = 0;
+  el.addEventListener('touchend', e=>{
+    const now = Date.now();
+    if(now - lastTap < 350){
+      e.preventDefault();
+      e.stopPropagation();
+      callback(e);
+    }
+    lastTap = now;
+  }, {passive:false});
+}
+
+function addText(text, x, y, w, fontFamily, color, weight, fontSize, kind, vertical){
+  objCounter++;
+  const el = document.createElement('div');
+  el.className='obj text-obj'+(kind==='guide' ? ' guide' : ' fixedok');
+  el.id='obj'+objCounter;
+  el.contentEditable='true';
+  el.innerText = text;
+  el.style.left=x+'px'; el.style.top=y+'px';
+  el.style.fontFamily = fontFamily;
+  if(kind!=='guide') el.style.color = color;
+  el.style.fontWeight = weight;
+  el.style.fontSize = fontSize+'px';
+  el.style.height = 'auto'; // 自動折り返し対応
+  if(vertical){
+    el.style.writingMode = 'vertical-rl';
+    el.style.textOrientation = 'mixed';
+    el.style.height = w+'px'; /* w doubles as the vertical line length here */
+    el.style.width = 'auto';
+    el.style.letterSpacing = '1px';
+  } else {
+    el.style.width = w+'px';
+  }
+  const handle = document.createElement('div');
+  handle.className='resize-handle';
+  el.appendChild(handle);
+  currentLayer().appendChild(el);
+  makeMovable(el);
+  makeResizable(el, handle, {type:'text'});
+  el.addEventListener('dblclick', e=>{ e.stopPropagation(); el.focus(); });
+  onDoubleTap(el, ()=>{ el.focus(); });
+  el.addEventListener('mousedown', e=>{ if(document.activeElement===el) e.stopPropagation(); });
+  el.addEventListener('touchstart', e=>{ if(document.activeElement===el) e.stopPropagation(); }, {passive:true});
+  // first edit clears the "guide" look so it reads as the user's own text
+  el.addEventListener('focus', ()=>{ el.dataset.everFocused='1'; });
+  el.addEventListener('blur', ()=>{
+    if(el.classList.contains('guide') && el.dataset.everFocused==='1'){
+      el.classList.remove('guide'); el.classList.add('fixedok'); el.style.color = '#2B2420';
+    }
+    saveSnapshot();
+  });
+  return el;
+}
+
+function addQR(type, x, y, size, dataURL){
+  objCounter++;
+  const el = document.createElement('div');
+  el.className='obj qr-obj '+type;
+  el.id='obj'+objCounter;
+  el.dataset.qrtype = type;
+  el.style.left=x+'px'; el.style.top=y+'px'; el.style.width=size+'px'; el.style.height=size+'px';
+
+  const fileInput = document.createElement('input');
+  fileInput.type='file'; fileInput.accept='image/*'; fileInput.style.display='none';
+  el.appendChild(fileInput);
+
+  function renderFilled(src){
+    el.querySelectorAll('.sq, img').forEach(n=>n.remove());
+    const img = document.createElement('img');
+    img.src = src; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='contain'; img.draggable=false;
+    el.insertBefore(img, el.firstChild);
+    el.classList.remove('qr-empty');
+  }
+  function renderEmpty(){
+    el.querySelectorAll('.sq, img').forEach(n=>n.remove());
+    const sq = document.createElement('div'); sq.className='sq';
+    sq.innerHTML = '<span class="qr-upload-ico">📷</span><span class="qr-upload-txt">ここに自店QR画像を<br>アップロード</span>';
+    el.insertBefore(sq, el.firstChild);
+    el.classList.add('qr-empty');
+  }
+  if(dataURL){ renderFilled(dataURL); } else { renderEmpty(); }
+
+  el.addEventListener('dblclick', e=>{ e.stopPropagation(); fileInput.click(); });
+  onDoubleTap(el, ()=>{ fileInput.click(); });
+  fileInput.addEventListener('click', e=>e.stopPropagation());
+  fileInput.addEventListener('change', e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => renderFilled(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+
+  const handle = document.createElement('div');
+  handle.className='resize-handle';
+  el.appendChild(handle);
+  currentLayer().appendChild(el);
+  makeMovable(el);
+  makeResizable(el, handle, {type:'qr'});
+  return el;
+}
+
+function addImageObj(dataURL, x, y, w, h){
+  objCounter++;
+  const el = document.createElement('div');
+  el.className='obj img-obj';
+  el.id='obj'+objCounter;
+  el.style.left=x+'px'; el.style.top=y+'px'; el.style.width=w+'px'; el.style.height=h+'px';
+  const img = document.createElement('img');
+  img.src = dataURL; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='contain'; img.draggable=false;
+  el.appendChild(img);
+  const handle = document.createElement('div');
+  handle.className='resize-handle';
+  el.appendChild(handle);
+  currentLayer().appendChild(el);
+  makeMovable(el);
+  makeResizable(el, handle, {type:'img'});
+  setTimeout(saveSnapshot, 0);
+  return el;
+}
+
+function addTextDefault(){
+  const el = addText('テキストを入力', 200, 60, 140, "'Zen Kaku Gothic New', sans-serif", '#2B2420', '400', 13, 'fixedok');
+  selectObj(el);
+}
+
+// テキスト種類ごとのテンプレ（プリセット初期配置と「素材を選ぶ」トレイの両方で共用）
+const textTemplateList = [
+  { key:'name',    icon:'店', label:'店名テキスト（大）',  content:'店名', font:"'Hiragino Mincho ProN','Yu Mincho',serif", color:'#2B2420', weight:'700', size:32, width:160, kind:'guide' },
+  { key:'subname', icon:'名', label:'店名サブ（小）',      content:'〇〇店', font:"'Zen Kaku Gothic New', sans-serif", color:'#2B2420', weight:'400', size:18, width:160, kind:'guide' },
+  { key:'biz',     icon:'業', label:'業態テキスト',        content:'業態・キャッチコピーを入力', font:"'Zen Kaku Gothic New', sans-serif", color:'#8A7B5E', weight:'400', size:12, width:160, kind:'guide' },
+  { key:'coupon',  icon:'割', label:'クーポン文言テキスト', content:'口頭注文クーポン文言を入力\n（例:ポイントカード掲示で「飯・麺大盛半額」）', font:"'Zen Kaku Gothic New', sans-serif", color:'#2B2420', weight:'700', size:13, width:400, kind:'guide' },
+  { key:'terms',   icon:'規', label:'規約文テキスト',      content:'※スタンプは会計時以外押せません。カードの紛失等は対応致しかねます。有効期限は初回発行から1年間となり、有効期限の過ぎたカードは使用不可', font:"'Zen Kaku Gothic New', sans-serif", color:'#555', weight:'400', size:9, width:173, kind:'fixedok' },
+  { key:'tel',     icon:'☎', label:'TEL・住所テキスト',    content:'TEL　1234-56-7890\n〒123-5678　住所を入力', font:"'Zen Kaku Gothic New', sans-serif", color:'#2B2420', weight:'400', size:10, width:162, kind:'guide' },
+  { key:'bonus_green',  icon:'次', label:'次回特典（緑）',   content:'次回！\n〇〇1杯\n無料♪', font:"'Zen Kaku Gothic New', sans-serif", color:'var(--green)', weight:'700', size:9, width:52, kind:'fixedok' },
+  { key:'bonus_purple', icon:'次', label:'次回特典（紫）',   content:'次回！\n〇〇1個\n無料♪', font:"'Zen Kaku Gothic New', sans-serif", color:'#a040a0',    weight:'700', size:9, width:52, kind:'fixedok' },
+  { key:'bonus_red',    icon:'次', label:'次回特典（赤）',   content:'次回！\n〇〇1人前\n無料♪', font:"'Zen Kaku Gothic New', sans-serif", color:'var(--red)', weight:'700', size:9, width:52, kind:'fixedok' },
+  { key:'free',    icon:'＋', label:'自由テキスト',          content:'テキストを入力', font:"'Zen Kaku Gothic New', sans-serif", color:'#2B2420', weight:'400', size:13, width:160, kind:'fixedok' },
+];
+
+// テキストエリア↔カード双方向同期
+const textEditArea = document.getElementById('textEditArea');
+textEditArea.addEventListener('input', ()=>{
+  if(selectedEl && selectedEl.classList.contains('text-obj')){
+    selectedEl.innerText = textEditArea.value;
+  }
+});
+// カード上でテキスト編集したらエリアにも反映
+document.addEventListener('input', e=>{
+  if(e.target.classList && e.target.classList.contains('text-obj') && e.target === selectedEl){
+    textEditArea.value = e.target.innerText;
+  }
+});
+
+document.getElementById('fontSelect').addEventListener('change', e=>{ if(selectedEl) selectedEl.style.fontFamily = e.target.value; });
+document.getElementById('colorSelect').addEventListener('change', e=>{
+  if(!selectedEl) return;
+  selectedEl.style.color = e.target.value;
+  document.getElementById('colorPicker').value = e.target.value.startsWith('#') ? e.target.value : '#2B2420';
+});
+document.getElementById('colorPicker').addEventListener('input', e=>{
+  if(!selectedEl) return;
+  selectedEl.style.color = e.target.value;
+  document.getElementById('colorSelect').value = e.target.value; // プリセットにあれば選択
+});
+document.getElementById('colorPicker').addEventListener('change', ()=>saveSnapshot());
+document.getElementById('weightSelect').addEventListener('change', e=>{ if(selectedEl) selectedEl.style.fontWeight = e.target.value; });
+
+// フォントサイズ
+document.getElementById('fontSizeInput').addEventListener('input', e=>{
+  if(!selectedEl) return;
+  const v = parseInt(e.target.value);
+  if(v>=6 && v<=120) selectedEl.style.fontSize = v+'px';
+});
+document.getElementById('fontSizeInput').addEventListener('change', ()=>saveSnapshot());
+document.getElementById('btnFontMinus').addEventListener('click', ()=>{
+  if(!selectedEl) return;
+  const v = Math.max(6, (parseFloat(selectedEl.style.fontSize)||13) - 1);
+  selectedEl.style.fontSize = v+'px';
+  document.getElementById('fontSizeInput').value = Math.round(v);
+  saveSnapshot();
+});
+document.getElementById('btnFontPlus').addEventListener('click', ()=>{
+  if(!selectedEl) return;
+  const v = Math.min(120, (parseFloat(selectedEl.style.fontSize)||13) + 1);
+  selectedEl.style.fontSize = v+'px';
+  document.getElementById('fontSizeInput').value = Math.round(v);
+  saveSnapshot();
+});
+
+// 重なり順（テキスト）
+document.getElementById('btnBringFront').addEventListener('click', ()=>{
+  if(!selectedEl) return;
+  currentLayer().appendChild(selectedEl);
+  saveSnapshot();
+});
+document.getElementById('btnSendBack').addEventListener('click', ()=>{
+  if(!selectedEl) return;
+  currentLayer().insertBefore(selectedEl, currentLayer().firstChild);
+  saveSnapshot();
+});
+
+// 重なり順（画像）
+document.getElementById('btnBringFrontImg').addEventListener('click', ()=>{
+  if(!selectedEl) return;
+  currentLayer().appendChild(selectedEl);
+  saveSnapshot();
+});
+document.getElementById('btnSendBackImg').addEventListener('click', ()=>{
+  if(!selectedEl) return;
+  currentLayer().insertBefore(selectedEl, currentLayer().firstChild);
+  saveSnapshot();
+});
+document.getElementById('btnCopyObj').addEventListener('click', ()=>{
+  if(!selectedEl) return;
+  const clone = selectedEl.cloneNode(true);
+  objCounter++;
+  clone.id = 'obj'+objCounter;
+  clone.classList.remove('selected');
+  // offset position slightly so it's visible
+  const curLeft = parseFloat(clone.style.left)||0;
+  const curTop  = parseFloat(clone.style.top)||0;
+  clone.style.left = Math.min(curLeft+20, CARD_W-60)+'px';
+  clone.style.top  = Math.min(curTop+20, CARD_H-40)+'px';
+  // re-attach movable/resizable
+  const handle = clone.querySelector('.resize-handle');
+  currentLayer().appendChild(clone);
+  makeMovable(clone);
+  if(handle) makeResizable(clone, handle, {
+    type: clone.classList.contains('qr-obj') ? 'qr'
+        : clone.classList.contains('img-obj') ? 'img'
+        : clone.classList.contains('stamp-shape-obj') ? 'img'
+        : clone.classList.contains('stamp-grid-obj') ? 'group'
+        : 'text'
+  });
+  // re-attach dblclick for text
+  if(clone.classList.contains('text-obj')){
+    clone.addEventListener('dblclick', e=>{ e.stopPropagation(); clone.focus(); });
+    onDoubleTap(clone, ()=>clone.focus());
+    clone.addEventListener('mousedown', e=>{ if(document.activeElement===clone) e.stopPropagation(); });
+    clone.addEventListener('touchstart', e=>{ if(document.activeElement===clone) e.stopPropagation(); }, {passive:true});
+  }
+  selectObj(clone);
+});
+document.getElementById('qrTypeSelect').addEventListener('change', e=>{
+  if(!selectedEl) return;
+  selectedEl.className = 'obj qr-obj selected '+e.target.value;
+  selectedEl.dataset.qrtype = e.target.value;
+});
+document.getElementById('btnDeleteQR').addEventListener('click', ()=>{ if(selectedEl){ selectedEl.remove(); selectedEl=null; document.getElementById('qrControls').style.display='none'; document.getElementById('noneMsg').style.display=''; saveSnapshot(); } });
+document.getElementById('btnDeleteImg').addEventListener('click', ()=>{ if(selectedEl){ selectedEl.remove(); selectedEl=null; document.getElementById('imgControls').style.display='none'; document.getElementById('noneMsg').style.display=''; saveSnapshot(); } });
+document.getElementById('btnDeleteText').addEventListener('click', ()=>{ if(selectedEl){ selectedEl.remove(); selectedEl=null; document.getElementById('textControls').style.display='none'; document.getElementById('btnCopyObj').style.display='none'; document.getElementById('noneMsg').style.display=''; saveSnapshot(); } });
+document.getElementById('btnDeleteStamp').addEventListener('click', ()=>{ if(selectedEl){ selectedEl.remove(); selectedEl=null; document.getElementById('stampControls').style.display='none'; document.getElementById('noneMsg').style.display=''; saveSnapshot(); } });
+
+let faceBackground = {
+  front: 'linear-gradient(135deg,#F2E9D8,#E2CE9F)',
+  back: '#ffffff'
+};
+
+function applyBackground(bgValue){
+  faceBackground[currentFace] = bgValue;
+  card.style.background = bgValue;
+  renderSheet();
+}
+
+function setFace(face){
+  currentFace = face;
+  frontFace.style.display = face==='front' ? '' : 'none';
+  backFace.style.display = face==='back' ? '' : 'none';
+  card.style.background = faceBackground[face];
+  document.getElementById('btnFront').classList.toggle('active', face==='front');
+  document.getElementById('btnBack').classList.toggle('active', face==='back');
+  document.getElementById('btnFrontPreview').classList.toggle('active', face==='front');
+  document.getElementById('btnBackPreview').classList.toggle('active', face==='back');
+  stageLabel.textContent = 'CARD EDITOR — ' + (face==='front' ? '表面' : '裏面');
+  document.getElementById('previewLabel').textContent = 'A4プレビュー — ' + (face==='front' ? '表面' : '裏面') + '（見開き名刺サイズ × 5面）';
+  renderSheet();
+}
+document.getElementById('btnFront').addEventListener('click', ()=>setFace('front'));
+document.getElementById('btnBack').addEventListener('click', ()=>setFace('back'));
+document.getElementById('btnFrontPreview').addEventListener('click', ()=>setFace('front'));
+document.getElementById('btnBackPreview').addEventListener('click', ()=>setFace('back'));
+
+// ---- individual stamp parts: shapes (circle / square / connected strip) and overlay numbers ----
+function addStampShape(shape, x, y, highlight){
+  objCounter++;
+  const el = document.createElement('div');
+  el.className = 'obj stamp-shape-obj' + (highlight ? ' stamp-hl' : '');
+  el.dataset.shape = shape;
+  el.id = 'obj'+objCounter;
+
+  let w, h, inner;
+  if(shape==='circle'){
+    w=51; h=51;
+    inner = `<div class="stamp-cell stamp-circle"></div>`;
+  } else if(shape==='square'){
+    w=51; h=51;
+    inner = `<div class="stamp-cell"></div>`;
+  } else if(shape==='strip3'){
+    w=165; h=51;
+    inner = `<div class="stamp-strip">${'<div class="stamp-cell"></div>'.repeat(3)}</div>`;
+  } else if(shape==='strip5'){
+    w=271; h=51;
+    inner = `<div class="stamp-strip">${'<div class="stamp-cell"></div>'.repeat(5)}</div>`;
+  }
+  el.innerHTML = inner;
+  el.style.left=x+'px'; el.style.top=y+'px'; el.style.width=w+'px'; el.style.height=h+'px';
+
+  const handle = document.createElement('div');
+  handle.className='resize-handle';
+  el.appendChild(handle);
+  currentLayer().appendChild(el);
+  makeMovable(el);
+  makeResizable(el, handle, {type:'img'});
+  return el;
+}
+
+function addStampNumber(label, x, y){
+  return addText(label, x, y, 32, "'Noto Sans JP', sans-serif", '#2B2420', '900', 21, 'fixedok');
+}
+
+function addStampBonusText(text, x, y, w){
+  return addText(text, x, y, w, "'Zen Kaku Gothic New', sans-serif", '#2B2420', '700', 10, 'guide');
+}
+
+function renderSheet(){
+  const sheet = document.getElementById('a4Preview');
+  sheet.innerHTML='';
+  for(let i=0;i<5;i++){
+    const mini = document.createElement('div');
+    mini.className='mini';
+    mini.style.position='relative';
+    mini.style.overflow='hidden';
+    mini.style.background = currentFace==='back' ? '#fff' : (card.style.background || bgMap[1]);
+
+    const clone = card.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.style.position='absolute';
+    clone.style.top='0'; clone.style.left='0';
+    clone.style.width = CARD_W+'px';
+    clone.style.height = CARD_H+'px';
+    clone.style.transformOrigin='top left';
+    clone.style.pointerEvents='none';
+    clone.style.background='transparent';
+    clone.querySelectorAll('.resize-handle').forEach(h=>h.remove());
+    clone.querySelectorAll('input[type=file]').forEach(i=>i.remove());
+    clone.querySelectorAll('.selected').forEach(el=>el.classList.remove('selected'));
+    clone.querySelectorAll('[contenteditable]').forEach(el=>el.contentEditable='false');
+    const fg = clone.querySelector('#foldGuide'); if(fg) fg.remove();
+
+    mini.appendChild(clone);
+    sheet.appendChild(mini);
+  }
+  requestAnimationFrame(()=>{
+    sheet.querySelectorAll('.mini').forEach(mini=>{
+      const w = mini.clientWidth;
+      const scale = w / CARD_W;
+      const clone = mini.firstChild;
+      if(clone) clone.style.transform = 'scale('+scale+')';
+    });
+  });
+}
+
+document.getElementById('btnExport').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btnExport');
+  btn.textContent='書き出し中…'; btn.disabled=true;
+  document.querySelectorAll('.obj').forEach(o=>o.classList.remove('selected'));
+  const foldGuide = document.getElementById('foldGuide');
+  foldGuide.style.display = 'none';
+  try{
+    const cardCanvas = await html2canvas(card, {scale:3, backgroundColor:null});
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({unit:'mm', format:'a4'});
+    const cardW=182, cardH=55, gapY=2, rows=5;
+    const totalH = rows*cardH + (rows-1)*gapY;
+    const marginX=(210-cardW)/2, marginY=(297-totalH)/2;
+    const imgData = cardCanvas.toDataURL('image/png');
+    for(let r=0;r<rows;r++){
+      const y = marginY + r*(cardH+gapY);
+      pdf.addImage(imgData,'PNG', marginX, y, cardW, cardH);
+    }
+    pdf.save('ポイントカード_'+(currentFace==='front'?'表面':'裏面')+'_5面付け_デモ.pdf');
+  }catch(err){
+    alert('書き出しに失敗しました: '+err.message);
+  }finally{
+    foldGuide.style.display = '';
+    btn.textContent='PDF書き出し（5面付け）'; btn.disabled=false;
+  }
+});
+
+// --- initial default parts: FRONT ---
+// 左面: カード左半分(0-364)
+// ロゴ仮枠150px 上下中央
+addQR('generic', 20, 35, 150);
+
+// テキスト群: ロゴ上端に合わせて右隣から
+addText('店名', 182, 35, 162, "'Hiragino Mincho ProN','Yu Mincho',serif", '#2B2420', '700', 34, 'guide');
+addText('〇〇店', 182, 88, 162, "'Zen Kaku Gothic New', sans-serif", '#2B2420', '400', 15, 'guide');
+addText('業態・キャッチ\nコピーを入力', 182, 112, 162, "'Zen Kaku Gothic New', sans-serif", '#8A7B5E', '400', 11, 'guide');
+addText('TEL　1234-56-7890', 182, 158, 162, "'Zen Kaku Gothic New', sans-serif", '#2B2420', '400', 10, 'guide');
+addText('〒123-5678　住所を入力', 182, 173, 162, "'Zen Kaku Gothic New', sans-serif", '#2B2420', '400', 10, 'guide');
+
+// 右面: QR枠は上寄り、テキストがカード内に収まる位置
+addQR('google', 385, 16, 127);
+addText('★ Googleロコミ\nご来店の感想を\nお聞かせ下さい', 384, 149, 147, "'Zen Kaku Gothic New', sans-serif", '#2B2420', '400', 11, 'fixedok');
+addQR('line', 557, 16, 127);
+addText('🎁 公式LINE\n毎月お得な\nクーポン配信中', 557, 149, 147, "'Zen Kaku Gothic New', sans-serif", '#2B2420', '400', 11, 'fixedok');
+
+// --- initial default parts: BACK ---
+currentFace = 'back';
+{
+  const frameURL = assetStore.stamps[0]?.dataURL || null;
+  const numURLs  = assetStore.stamps.slice(1, 10).map(s => s?.dataURL || null);
+  const SZ = 58;
+  const GAP = 5;
+  // 左面中心=182, 右面中心=546
+  // 4枠の合計幅 = 4*SZ + 3*GAP = 247px
+  const LCX = 182; // 左面中心
+  const RCX = 546; // 右面中心
+  const clusterW = 4*SZ + 3*GAP; // 247px
+  const lStart = LCX - clusterW/2; // 左クラスター左端
+  const rStart = RCX - clusterW/2; // 右クラスター左端
+
+  function placeFrame(x, y, highlight){
+    if(frameURL){
+      const el = addImageObj(frameURL, x, y, SZ, SZ);
+      if(highlight) el.style.filter = 'sepia(1) saturate(4) hue-rotate(330deg)';
+    } else {
+      addStampShape('square', x, y, !!highlight);
+    }
+  }
+  function placeNum(numIdx, x, y){
+    const url = numURLs[numIdx];
+    if(url){
+      addImageObj(url, x+4, y+4, SZ-8, SZ-8);
+    } else {
+      addStampNumber(['一','二','三','四','五','六','七','八','九'][numIdx], x+10, y+13);
+    }
+  }
+
+  // 左面 Row1: 一〜三 + ボーナス枠（中央揃え）
+  const row1Y = 8;
+  for(let i=0;i<3;i++){ const x=lStart+i*(SZ+GAP); placeFrame(x,row1Y); placeNum(i,x,row1Y); }
+  const lBonus1 = lStart+3*(SZ+GAP);
+  placeFrame(lBonus1, row1Y);
+  addText('次回！\n〇〇1杯\n無料♪', lBonus1+3, row1Y+4, SZ-6, "'Zen Kaku Gothic New', sans-serif", 'var(--green)', '700', 9, 'fixedok');
+
+  // 左面 Row2: 四〜六 + ボーナス枠（中央揃え）
+  const row2Y = row1Y + SZ + GAP;
+  for(let i=0;i<3;i++){ const x=lStart+i*(SZ+GAP); placeFrame(x,row2Y); placeNum(i+3,x,row2Y); }
+  const lBonus2 = lStart+3*(SZ+GAP);
+  placeFrame(lBonus2, row2Y);
+  addText('次回！\n〇〇1個\n無料♪', lBonus2+3, row2Y+12, SZ-6, "'Zen Kaku Gothic New', sans-serif", '#a040a0', '700', 9, 'fixedok');
+
+  // 左面 下テキスト（左面内に収める x=lStart〜lStart+clusterW）
+  addText('次回特典利用時は、こちらのカードを注文時に掲示下さい。', lStart, 138, clusterW, "'Zen Kaku Gothic New', sans-serif", '#2B2420', '700', 9, 'fixedok');
+  addText('使用済みの特典は利用不可、他クーポンと併用不可となります。', lStart, 174, clusterW, "'Zen Kaku Gothic New', sans-serif", 'var(--red)', '400', 8, 'fixedok');
+
+  // 右面 上テキスト（右面内 x=374〜718）
+  addText('ポイントカード掲示で「飯・麺大盛半額」（口頭注文でお願いします）', rStart, 4, clusterW, "'Zen Kaku Gothic New', sans-serif", 'var(--red)', '900', 11, 'fixedok');
+
+  // 右面 Row: 七〜九 + 強調ボーナス（中央揃え）
+  const rRow1Y = 26;
+  for(let i=0;i<3;i++){ const x=rStart+i*(SZ+GAP); placeFrame(x,rRow1Y); placeNum(i+6,x,rRow1Y); }
+  const rBonus = rStart+3*(SZ+GAP);
+  placeFrame(rBonus, rRow1Y, true);
+  addText('次回！\n〇〇1人前\n無料♪', rBonus+3, rRow1Y+4, SZ-6, "'Zen Kaku Gothic New', sans-serif", 'var(--red)', '700', 8, 'fixedok');
+
+  // 右面 規約文（青）
+  const rTextW = clusterW * 0.58; // 左約6割を規約文に
+  addText('こちらのスタンプカードをお会計時に掲示された方限定で、お会計1000円毎にスタンプ1個を押させていただきます。スタンプが貯まると次回特典ご利用出来ます♪', rStart, 100, rTextW, "'Zen Kaku Gothic New', sans-serif", '#2060b0', '700', 9, 'fixedok');
+
+  // 右面 規約小テキスト＋有効期限（右端寄り）
+  const rSmallX = rStart + rTextW + 8;
+  const rSmallW = clusterW - rTextW - 8;
+  addText('※スタンプは会計時以外押せません。カードの紛失等は対応致しかねます。有効期限は初回発行から1年間となり、有効期限の過ぎたカードは使用不可', rSmallX, 100, rSmallW, "'Zen Kaku Gothic New', sans-serif", '#555', '400', 8, 'fixedok');
+  addText('有効期限　令和　年　月末まで', rSmallX, 178, rSmallW, "'Zen Kaku Gothic New', sans-serif", '#2B2420', '700', 10, 'fixedok');
+}
+currentFace = 'front';
+card.style.background = faceBackground.front;
+
+renderSheet();
+// 初期状態をスナップショットとして保存
+setTimeout(saveSnapshot, 100);
+
+// ===================== 設定パネル =====================
+
+const categoryLabels = {izakaya:'居酒屋',asian:'Asian',italian:'Italian',spanish:'Spanish',american:'American',steakhouse:'Steak house',mexican:'Mexican',meatbar:'Meat Bar',chinese:'Chinese',yakiniku:'Yakiniku'};
+
+function goTab(tabId, pageId){
+  document.querySelectorAll('.hdr .tabs button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  if(pageId==='page-preview') renderSheet();
+  if(pageId==='page-edit') setTimeout(updateCardScale, 0);
+}
+document.getElementById('tabEdit').addEventListener('click', ()=>goTab('tabEdit','page-edit'));
+document.getElementById('tabPreview').addEventListener('click', ()=>goTab('tabPreview','page-preview'));
+document.getElementById('tabSettings').addEventListener('click', ()=>goTab('tabSettings','page-settings'));
+
+document.querySelectorAll('.settings-tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.settings-tabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.settings-pane').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.pane).classList.add('active');
+  });
+});
+
+function readFileAsDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = ()=>resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+// 透明余白を自動トリミングしてdataURLで返す
+function trimTransparentEdges(dataURL){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const c = document.createElement('canvas');
+      c.width=img.width; c.height=img.height;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img,0,0);
+      const px = ctx.getImageData(0,0,c.width,c.height).data;
+      let minX=c.width, minY=c.height, maxX=0, maxY=0;
+      for(let y=0;y<c.height;y++){
+        for(let x=0;x<c.width;x++){
+          const a = px[(y*c.width+x)*4+3];
+          if(a>2){
+            if(x<minX) minX=x;
+            if(x>maxX) maxX=x;
+            if(y<minY) minY=y;
+            if(y>maxY) maxY=y;
+          }
+        }
+      }
+      if(minX>maxX || minY>maxY){ resolve(dataURL); return; }
+      const pad=2;
+      minX=Math.max(0,minX-pad); minY=Math.max(0,minY-pad);
+      maxX=Math.min(c.width-1,maxX+pad); maxY=Math.min(c.height-1,maxY+pad);
+      const trimW=maxX-minX+1, trimH=maxY-minY+1;
+      const c2=document.createElement('canvas');
+      c2.width=trimW; c2.height=trimH;
+      c2.getContext('2d').drawImage(c,minX,minY,trimW,trimH,0,0,trimW,trimH);
+      resolve(c2.toDataURL('image/png'));
+    };
+    img.onerror=()=>resolve(dataURL);
+    img.src=dataURL;
+  });
+}
+
+function renderLogoGrid(){
+  const grid = document.getElementById('logoGrid');
+  grid.innerHTML='';
+  let any=false;
+  Object.keys(assetStore.logos).forEach(cat=>{
+    assetStore.logos[cat].forEach((logo, idx)=>{
+      any=true;
+      const card = document.createElement('div'); card.className='asset-card';
+      card.innerHTML = `<img src="${logo.dataURL}"><div class="nm">${categoryLabels[cat]||cat} / ${logo.name}</div>`;
+      const btns = document.createElement('div'); btns.className='btns';
+      const del = document.createElement('button'); del.textContent='削除'; del.className='del'; del.style.flex='1';
+      del.addEventListener('click', ()=>{ assetStore.logos[cat].splice(idx,1); renderLogoGrid(); renderTray(); });
+      btns.appendChild(del);
+      card.appendChild(btns);
+      grid.appendChild(card);
+    });
+  });
+  if(!any) grid.innerHTML = '<div class="asset-empty">まだ登録されたロゴがありません</div>';
+}
+renderLogoGrid();
+
+document.getElementById('btnAddLogoAsset').addEventListener('click', async ()=>{
+  const cat = document.getElementById('logoCategorySelect').value;
+  const name = document.getElementById('logoNameInput').value.trim() || '店舗';
+  const file = document.getElementById('logoFileInput').files[0];
+  if(!file){ alert('ロゴ画像を選択してください'); return; }
+  const rawDataURL = await readFileAsDataURL(file);
+  const dataURL = await trimTransparentEdges(rawDataURL);
+  if(!assetStore.logos[cat]) assetStore.logos[cat]=[];
+  assetStore.logos[cat].push({name, dataURL});
+  document.getElementById('logoNameInput').value='';
+  document.getElementById('logoFileInput').value='';
+  renderLogoGrid();
+  renderTray();
+});
+
+function renderQRGrid(){
+  const grid = document.getElementById('qrGrid');
+  grid.innerHTML='';
+  const names = Object.keys(assetStore.qrs);
+  if(names.length===0){ grid.innerHTML = '<div class="asset-empty">まだ登録された店舗QRがありません</div>'; return; }
+  names.forEach(storeName=>{
+    const set = assetStore.qrs[storeName];
+    const card = document.createElement('div'); card.className='asset-card';
+    card.innerHTML = `<img src="${set.google||set.line}"><div class="nm">${storeName}</div>`;
+    const btns = document.createElement('div'); btns.className='btns';
+    const del = document.createElement('button'); del.textContent='削除'; del.className='del'; del.style.flex='1';
+    del.addEventListener('click', ()=>{ delete assetStore.qrs[storeName]; renderQRGrid(); renderTray(); });
+    btns.appendChild(del);
+    card.appendChild(btns);
+    grid.appendChild(card);
+  });
+}
+renderQRGrid();
+
+function renderBGGrid(){
+  const grid = document.getElementById('bgGrid');
+  grid.innerHTML='';
+  if(assetStore.backgrounds.length===0){ grid.innerHTML='<div class="asset-empty">まだ登録された背景がありません</div>'; return; }
+  assetStore.backgrounds.forEach((bg, idx)=>{
+    const card = document.createElement('div'); card.className='asset-card';
+    card.innerHTML = `<img src="${bg.dataURL}"><div class="nm">${bg.name}</div>`;
+    const btns = document.createElement('div'); btns.className='btns';
+    const del = document.createElement('button'); del.textContent='削除'; del.className='del'; del.style.flex='1';
+    del.addEventListener('click', ()=>{ assetStore.backgrounds.splice(idx,1); renderBGGrid(); renderTray(); });
+    btns.appendChild(del);
+    card.appendChild(btns);
+    grid.appendChild(card);
+  });
+}
+renderBGGrid();
+
+document.getElementById('btnAddBGAsset').addEventListener('click', async ()=>{
+  const name = document.getElementById('bgNameInput').value.trim() || '背景';
+  const file = document.getElementById('bgFileInput').files[0];
+  if(!file){ alert('背景画像を選択してください'); return; }
+  const dataURL = await readFileAsDataURL(file);
+  assetStore.backgrounds.push({name, dataURL});
+  document.getElementById('bgNameInput').value='';
+  document.getElementById('bgFileInput').value='';
+  renderBGGrid();
+  renderTray();
+});
+
+function renderStampAssetGrid(){
+  const grid = document.getElementById('stampGrid2');
+  grid.innerHTML='';
+  if(assetStore.stamps.length===0){ grid.innerHTML='<div class="asset-empty">まだ登録されたスタンプ枠がありません</div>'; return; }
+  assetStore.stamps.forEach((s, idx)=>{
+    const card = document.createElement('div'); card.className='asset-card';
+    card.innerHTML = `<img src="${s.dataURL}"><div class="nm">${s.name}</div>`;
+    const btns = document.createElement('div'); btns.className='btns';
+    const del = document.createElement('button'); del.textContent='削除'; del.className='del'; del.style.flex='1';
+    del.addEventListener('click', ()=>{ assetStore.stamps.splice(idx,1); renderStampAssetGrid(); renderTray(); });
+    btns.appendChild(del);
+    card.appendChild(btns);
+    grid.appendChild(card);
+  });
+}
+renderStampAssetGrid();
+
+document.getElementById('btnAddStampAsset').addEventListener('click', async ()=>{
+  const name = document.getElementById('stampNameInput').value.trim() || 'スタンプ枠';
+  const file = document.getElementById('stampFileInput').files[0];
+  if(!file){ alert('スタンプ枠画像を選択してください'); return; }
+  const dataURL = await readFileAsDataURL(file);
+  assetStore.stamps.push({name, dataURL});
+  document.getElementById('stampNameInput').value='';
+  document.getElementById('stampFileInput').value='';
+  renderStampAssetGrid();
+  renderTray();
+});
+
+// ---- asset tray: tap-to-place, always visible under the card editor ----
+let trayActiveKey = 'bg';
+function renderTrayTabs(){
+  const tabs = document.getElementById('trayTabs');
+  tabs.innerHTML='';
+  const keys = ['text', 'stamp', 'bg', 'qr', 'logo'];
+  if(!keys.includes(trayActiveKey)) trayActiveKey = 'text';
+  const labels = { text:'テキスト', stamp:'スタンプ枠', bg:'背景', qr:'QR', logo:'ロゴ' };
+  keys.forEach(key=>{
+    const b = document.createElement('button');
+    b.textContent = labels[key];
+    if(key===trayActiveKey) b.classList.add('active');
+    b.addEventListener('click', ()=>{ trayActiveKey = key; renderTrayTabs(); renderTrayGrid(); });
+    tabs.appendChild(b);
+  });
+}
+
+function makeUploadTrayItem(label, onPicked){
+  const item = document.createElement('div'); item.className='tray-item';
+  item.innerHTML = `<div style="width:56px;height:40px;border-radius:4px;background:var(--paper2);border:2px dashed var(--border);margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:16px;">📁</div><div class="nm">${label}</div>`;
+  const input = document.createElement('input');
+  input.type='file'; input.accept='image/*'; input.style.display='none';
+  item.appendChild(input);
+  item.addEventListener('click', ()=>input.click());
+  input.addEventListener('change', e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => onPicked(ev.target.result);
+    reader.readAsDataURL(file);
+    input.value='';
+  });
+  return item;
+}
+
+function renderTrayGrid(){
+  const grid = document.getElementById('trayGrid');
+  grid.innerHTML='';
+
+  if(trayActiveKey==='text'){
+    textTemplateList.forEach(t=>{
+      const item = document.createElement('div'); item.className='tray-item';
+      item.innerHTML = `<div style="width:56px;height:40px;border-radius:4px;background:var(--paper2);border:1.5px solid var(--border);margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--red);">${t.icon}</div><div class="nm">${t.label}</div>`;
+      item.addEventListener('click', ()=>{
+        const el = addText(t.content, 200, 60, t.width, t.font, t.color, t.weight, t.size, t.kind);
+        selectObj(el);
+      });
+      grid.appendChild(item);
+    });
+    return;
+  }
+
+  if(trayActiveKey==='stamp'){
+    const shapes = [
+      {shape:'circle', label:'丸スタンプ枠'},
+      {shape:'square', label:'四角スタンプ枠'},
+      {shape:'square', label:'四角スタンプ枠（強調）', highlight:true},
+      {shape:'strip3', label:'連結スタンプ枠(3)'},
+      {shape:'strip5', label:'連結スタンプ枠(5)'},
+    ];
+    shapes.forEach(s=>{
+      const item = document.createElement('div'); item.className='tray-item';
+      const previewShape = s.shape==='circle' ? 'border-radius:50%;' : s.shape.startsWith('strip') ? 'border-radius:4px;' : 'border-radius:6px;';
+      const previewBorder = s.highlight ? 'border:2px solid var(--red);background:var(--red-lt);' : 'border:2px solid var(--ink);background:var(--paper2);';
+      item.innerHTML = `<div style="width:56px;height:40px;${previewShape}${previewBorder}margin:0 auto;"></div><div class="nm">${s.label}</div>`;
+      item.addEventListener('click', ()=>{ const el = addStampShape(s.shape, 24, 24, !!s.highlight); selectObj(el); });
+      grid.appendChild(item);
+    });
+    ['一','二','三','四','五','六','七','八','九'].forEach(k=>{
+      const item = document.createElement('div'); item.className='tray-item';
+      item.innerHTML = `<div style="width:56px;height:40px;border-radius:4px;background:var(--paper2);border:1px solid var(--border);margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;">${k}</div><div class="nm">数字「${k}」</div>`;
+      item.addEventListener('click', ()=>{ const el = addStampNumber(k, 30, 30); selectObj(el); });
+      grid.appendChild(item);
+    });
+    assetStore.stamps.forEach(s=>{
+      const item = document.createElement('div'); item.className='tray-item';
+      item.innerHTML = `<img src="${s.dataURL}"><div class="nm">${s.name}</div>`;
+      item.addEventListener('click', ()=>{ const el = addImageObj(s.dataURL, 24, 24, 100, 100); selectObj(el); });
+      grid.appendChild(item);
+    });
+    grid.appendChild(makeUploadTrayItem('画像をアップロード', dataURL => { const el = addImageObj(dataURL, 24, 24, 100, 100); selectObj(el); }));
+    return;
+  }
+
+  if(trayActiveKey==='bg'){
+    const solids = [
+      {label:'白地（インク◎最小）', value:'#ffffff'},
+      {label:'和紙風1（インク○少なめ）', value:'linear-gradient(135deg,#F2E9D8,#E2CE9F)'},
+      {label:'和紙風2（インク○少なめ）', value:'linear-gradient(135deg,#F4ECE0,#D8C7A6)'},
+      {label:'全面色（インク△多め）', value:'linear-gradient(135deg,#2B2420,#4A3C30)'},
+    ];
+    solids.forEach(s=>{
+      const item = document.createElement('div'); item.className='tray-item';
+      item.innerHTML = `<div style="width:56px;height:40px;border-radius:4px;background:${s.value};border:1px solid var(--border);margin:0 auto;"></div><div class="nm">${s.label}</div>`;
+      item.addEventListener('click', ()=>applyBackground(s.value));
+      grid.appendChild(item);
+    });
+    assetStore.backgrounds.forEach(bg=>{
+      const item = document.createElement('div'); item.className='tray-item';
+      item.innerHTML = `<img src="${bg.dataURL}"><div class="nm">${bg.name}</div>`;
+      item.addEventListener('click', ()=>applyBackground(`url(${bg.dataURL}) center/cover no-repeat`));
+      grid.appendChild(item);
+    });
+    grid.appendChild(makeUploadTrayItem('画像をアップロード', dataURL => applyBackground(`url(${dataURL}) center/cover no-repeat`)));
+    return;
+  }
+
+  if(trayActiveKey==='qr'){
+    grid.appendChild(makeUploadTrayItem('画像をアップロード', dataURL => addQR('generic', 290, 12, 95, dataURL)));
+    const item0 = document.createElement('div'); item0.className='tray-item';
+    item0.innerHTML = `<div style="width:56px;height:40px;border-radius:4px;background:var(--paper2);border:2px dashed var(--border);margin:0 auto;"></div><div class="nm">空のQR枠</div>`;
+    item0.addEventListener('click', ()=>addQR('generic', 290, 12, 95));
+    grid.appendChild(item0);
+    const names = Object.keys(assetStore.qrs);
+    names.forEach(storeName=>{
+      const set = assetStore.qrs[storeName];
+      const item = document.createElement('div'); item.className='tray-item';
+      item.innerHTML = `<img src="${set.google||set.line}"><div class="nm">${storeName}</div>`;
+      item.addEventListener('click', ()=>{
+        if(set.google) addQR('google', 290, 12, 95, set.google);
+        if(set.line) addQR('line', 420, 12, 95, set.line);
+      });
+      grid.appendChild(item);
+    });
+    return;
+  }
+
+  // ロゴ（全業態まとめて表示）
+  grid.appendChild(makeUploadTrayItem('画像をアップロード', dataURL => addImageObj(dataURL, 32, 21, 240, 120)));
+  let anyLogo = false;
+  Object.keys(assetStore.logos).forEach(cat=>{
+    (assetStore.logos[cat]||[]).forEach(logo=>{
+      anyLogo = true;
+      const item = document.createElement('div'); item.className='tray-item';
+      item.innerHTML = `<img src="${logo.dataURL}"><div class="nm">${logo.name}</div>`;
+      item.addEventListener('click', ()=>{ addImageObj(logo.dataURL, 32, 21, 240, 120); });
+      grid.appendChild(item);
+    });
+  });
+  if(!anyLogo){
+    const emp = document.createElement('div'); emp.className='tray-empty';
+    emp.textContent = 'ロゴが登録されていません（設定→ロゴから登録できます）';
+    grid.appendChild(emp);
+  }
+}
+function renderTray(){ renderTrayTabs(); renderTrayGrid(); saveToLocalStorage(); }
+renderTray();
+
+document.getElementById('btnApplyToolName').addEventListener('click', ()=>{
+  const v = document.getElementById('toolNameInput').value.trim();
+  toolName = v || 'ポイントカードメーカー';
+  applyToolNameToHeader();
+  saveToLocalStorage();
+});
+
+document.getElementById('btnAddQRAsset').addEventListener('click', async ()=>{
+  const storeName = document.getElementById('qrStoreNameInput').value.trim();
+  const gFile = document.getElementById('qrGoogleFileInput').files[0];
+  const lFile = document.getElementById('qrLineFileInput').files[0];
+  if(!storeName){ alert('店舗名を入力してください'); return; }
+  if(!gFile && !lFile){ alert('QR画像を少なくとも1枚選択してください'); return; }
+  const set = {};
+  if(gFile) set.google = await readFileAsDataURL(gFile);
+  if(lFile) set.line = await readFileAsDataURL(lFile);
+  assetStore.qrs[storeName] = set;
+  document.getElementById('qrStoreNameInput').value='';
+  document.getElementById('qrGoogleFileInput').value='';
+  document.getElementById('qrLineFileInput').value='';
+  renderQRGrid();
+  renderTray();
+});
+
+document.getElementById('btnExportJSON').addEventListener('click', ()=>{
+  const exportData = Object.assign({}, assetStore, { toolName });
+  const json = JSON.stringify(exportData);
+  const area = document.getElementById('jsonExportArea');
+  const ta = document.getElementById('jsonExportText');
+  area.style.display = '';
+  ta.value = json;
+  ta.select();
+});
+
+document.getElementById('btnCopyJSON').addEventListener('click', ()=>{
+  const ta = document.getElementById('jsonExportText');
+  ta.select();
+  try{
+    document.execCommand('copy');
+    document.getElementById('btnCopyJSON').textContent = '✅ コピーしました！';
+    setTimeout(()=>{ document.getElementById('btnCopyJSON').textContent = '全選択してコピー'; }, 2000);
+  }catch(e){
+    navigator.clipboard.writeText(ta.value).then(()=>{
+      document.getElementById('btnCopyJSON').textContent = '✅ コピーしました！';
+      setTimeout(()=>{ document.getElementById('btnCopyJSON').textContent = '全選択してコピー'; }, 2000);
+    });
+  }
+});
+
+document.getElementById('btnImportJSONTrigger').addEventListener('click', ()=>{
+  document.getElementById('importJSONFile').click();
+});
+document.getElementById('importJSONFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    assetStore.logos = data.logos || {};
+    assetStore.qrs = data.qrs || {};
+    assetStore.backgrounds = data.backgrounds || [];
+    assetStore.stamps = data.stamps || [];
+    if(data.toolName){ toolName = data.toolName; applyToolNameToHeader(); }
+    renderLogoGrid(); renderQRGrid(); renderBGGrid(); renderStampAssetGrid(); renderTray();
+    alert('読み込みました。');
+  }catch(err){
+    alert('読み込みに失敗しました: '+err.message);
+  }
+  e.target.value='';
+});
+
+// ── JSONテキスト貼り付け読み込み（v22新機能） ──
+function applyImportedJSON(data){
+  assetStore.logos = data.logos || {};
+  assetStore.qrs = data.qrs || {};
+  assetStore.backgrounds = data.backgrounds || [];
+  assetStore.stamps = data.stamps || [];
+  if(data.toolName){ toolName = data.toolName; applyToolNameToHeader(); }
+  renderLogoGrid(); renderQRGrid(); renderBGGrid(); renderStampAssetGrid(); renderTray();
+}
+function showPasteMsg(ok, msg){
+  const el = document.getElementById('jsonPasteMsg');
+  el.style.display = '';
+  el.style.background = ok ? 'var(--green-lt)' : 'var(--red-lt)';
+  el.style.color = ok ? 'var(--green)' : 'var(--red)';
+  el.textContent = msg;
+  if(ok) setTimeout(()=>{ el.style.display='none'; }, 3000);
+}
+document.getElementById('btnImportJSONPaste').addEventListener('click', ()=>{
+  const text = document.getElementById('jsonPasteArea').value.trim();
+  if(!text){ showPasteMsg(false, '⚠ JSONテキストを貼り付けてください'); return; }
+  try{
+    const data = JSON.parse(text);
+    applyImportedJSON(data);
+    showPasteMsg(true, '✅ 読み込みました！');
+    document.getElementById('jsonPasteArea').value = '';
+  }catch(err){
+    showPasteMsg(false, '❌ 読み込みに失敗しました: '+err.message);
+  }
+});
+document.getElementById('btnClearPasteArea').addEventListener('click', ()=>{
+  document.getElementById('jsonPasteArea').value = '';
+  document.getElementById('jsonPasteMsg').style.display = 'none';
+});
+
+updateCardScale();
+
+// ══════════════════════════════════════════
+// v23機能: カードレイアウト焼き込みHTMLダウンロード
+// ══════════════════════════════════════════
+
+function serializeLayer(layerEl){
+  const objs = [];
+  layerEl.querySelectorAll('.obj').forEach(el=>{
+    const base = {
+      left: el.style.left,
+      top:  el.style.top,
+      width: el.style.width,
+      height: el.style.height,
+    };
+    if(el.classList.contains('text-obj')){
+      objs.push({ type:'text', ...base,
+        text: el.innerText,
+        fontFamily: el.style.fontFamily,
+        color: el.style.color,
+        fontWeight: el.style.fontWeight,
+        fontSize: el.style.fontSize,
+        writingMode: el.style.writingMode || '',
+        kind: el.classList.contains('guide') ? 'guide' : 'fixedok',
+      });
+    } else if(el.classList.contains('qr-obj')){
+      const img = el.querySelector('img');
+      objs.push({ type:'qr', ...base,
+        qrtype: el.dataset.qrtype || 'generic',
+        dataURL: img ? img.src : null,
+      });
+    } else if(el.classList.contains('stamp-shape-obj')){
+      objs.push({ type:'stamp-shape', ...base,
+        shape: el.dataset.shape,
+        highlight: el.classList.contains('stamp-hl'),
+      });
+    } else if(el.classList.contains('img-obj')){
+      const img = el.querySelector('img');
+      objs.push({ type:'img', ...base,
+        dataURL: img ? img.src : '',
+      });
+    }
+  });
+  return objs;
+}
+
+function serializeCard(){
+  return {
+    frontBg: faceBackground.front,
+    backBg:  faceBackground.back,
+    front: serializeLayer(frontFace),
+    back:  serializeLayer(backFace),
+  };
+}
+
+function px(v){ return parseFloat(v)||0; }
+
+function restoreFromSerialized(data){
+  // clear
+  frontFace.innerHTML='';
+  backFace.innerHTML='';
+  objCounter=0;
+
+  faceBackground.front = data.frontBg || 'linear-gradient(135deg,#F2E9D8,#E2CE9F)';
+  faceBackground.back  = data.backBg  || '#ffffff';
+
+  function restoreLayer(items, targetFace){
+    const prev = currentFace;
+    currentFace = targetFace;
+    (items||[]).forEach(o=>{
+      const x=px(o.left), y=px(o.top), w=px(o.width), h=px(o.height);
+      if(o.type==='text'){
+        const fs = px(o.fontSize);
+        const el = addText(o.text, x, y, w, o.fontFamily, o.color, o.fontWeight, fs, o.kind,
+          o.writingMode ? true : false);
+        if(o.writingMode) el.style.writingMode=o.writingMode;
+        el.style.height = 'auto'; // 自動折り返し維持
+      } else if(o.type==='qr'){
+        addQR(o.qrtype, x, y, w, o.dataURL||undefined);
+      } else if(o.type==='stamp-shape'){
+        const el = addStampShape(o.shape, x, y, o.highlight);
+        el.style.width=o.width; el.style.height=o.height;
+      } else if(o.type==='img'){
+        addImageObj(o.dataURL, x, y, w, h);
+      }
+    });
+    currentFace = prev;
+  }
+
+  restoreLayer(data.front, 'front');
+  restoreLayer(data.back,  'back');
+
+  setFace(currentFace); // Undo後は今いる面を維持
+  renderSheet();
+}
+
+document.getElementById('btnUndo').addEventListener('click', performUndo);
+</script>
+</body>
+</html>
