@@ -1792,15 +1792,9 @@ function applyImportedJSON(data){
   // カードデザイン状態を復元
   if(data.cardState){
     undoLocked = true;
-    frontFace.innerHTML = '';
-    backFace.innerHTML = '';
-    faceBackground.front = data.cardState.frontBg || faceBackground.front;
-    faceBackground.back  = data.cardState.backBg  || faceBackground.back;
-    restoreLayer(data.cardState.front, 'front');
-    restoreLayer(data.cardState.back,  'back');
+    restoreFromSerialized(data.cardState);
     undoLocked = false;
     setFace(currentFace);
-    renderSheet();
     saveSnapshot();
   }
 }
