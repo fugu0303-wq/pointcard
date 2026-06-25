@@ -489,6 +489,7 @@
         <div style="font-size:12px; font-weight:900; color:var(--ink); border-left:3px solid var(--red); padding-left:8px; margin:0 0 10px;">📤 書き出し</div>
         <div class="iojson-row">
           <button id="btnExportJSON">📋 JSONを表示してコピー</button>
+          <button id="btnDownloadJSON" style="margin-left:8px;">💾 JSONファイルとして保存</button>
         </div>
         <div id="jsonExportArea" style="display:none; margin-top:12px;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
@@ -1741,6 +1742,26 @@ document.getElementById('btnExportJSON').addEventListener('click', ()=>{
   area.style.display = '';
   ta.value = json;
   ta.select();
+});
+
+document.getElementById('btnDownloadJSON').addEventListener('click', ()=>{
+  const exportData = Object.assign({}, assetStore, {
+    toolName,
+    cardState: {
+      front: serializeLayer(frontFace),
+      back:  serializeLayer(backFace),
+      frontBg: faceBackground.front,
+      backBg:  faceBackground.back,
+    }
+  });
+  const json = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([json], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pointcard_data.json';
+  a.click();
+  URL.revokeObjectURL(url);
 });
 
 document.getElementById('btnCopyJSON').addEventListener('click', ()=>{
