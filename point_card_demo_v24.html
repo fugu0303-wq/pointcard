@@ -373,6 +373,12 @@
       <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt">素材を選ぶ</div><div class="card-hd-sub">タップで配置</div></div>
       <div class="tray-tabs" id="trayTabs"></div>
       <div class="tray-grid" id="trayGrid"></div>
+      <div style="margin-top:12px;">
+        <a href="https://drive.google.com/drive/folders/1_Hw00oCy7jU33axVvdFPdQIbSal2YIDk?usp=sharing" target="_blank" style="display:inline-flex; align-items:center; gap:8px; background:#1a73e8; color:#fff; font-weight:700; font-size:13px; padding:10px 18px; border-radius:8px; text-decoration:none; font-family:inherit;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 20.25L8.25 13.5H21.75L18 20.25H4.5Z" fill="#fff" opacity=".7"/><path d="M2.25 20.25L8.25 9.75L11.25 15L8.25 20.25H2.25Z" fill="#fff" opacity=".85"/><path d="M8.25 9.75H15.75L12 3.75H8.25L5.25 9.75H8.25Z" fill="#fff"/></svg>
+          素材フォルダを開く（Googleドライブ）
+        </a>
+      </div>
     </div>
 
     <div class="card" style="background:var(--paper2); border:1.5px dashed var(--border);">
@@ -407,6 +413,18 @@
     <div class="card">
       <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt">設定 — ロゴ・QR登録 / 共有</div></div>
       <div class="sub" style="margin-bottom:16px;">ここで登録した素材は「編集」タブの「素材を選ぶ」からタップで配置できます。全部まとめてJSONで書き出して、他の店舗に共有できます。</div>
+      <div style="margin-bottom:16px;">
+        <a href="https://drive.google.com/drive/folders/1_Hw00oCy7jU33axVvdFPdQIbSal2YIDk?usp=sharing" target="_blank" style="display:inline-flex; align-items:center; gap:8px; background:#1a73e8; color:#fff; font-weight:700; font-size:13px; padding:10px 18px; border-radius:8px; text-decoration:none; font-family:inherit;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 20.25L8.25 13.5H21.75L18 20.25H4.5Z" fill="#fff" opacity=".7"/><path d="M2.25 20.25L8.25 9.75L11.25 15L8.25 20.25H2.25Z" fill="#fff" opacity=".85"/><path d="M8.25 9.75H15.75L12 3.75H8.25L5.25 9.75H8.25Z" fill="#fff"/></svg>
+          素材フォルダを開く（Googleドライブ）
+        </a>
+      </div>
+      <div style="margin-bottom:16px;">
+        <a href="https://drive.google.com/drive/folders/1_Hw00oCy7jU33axVvdFPdQIbSal2YIDk?usp=sharing" target="_blank" style="display:inline-flex; align-items:center; gap:8px; background:#1a73e8; color:#fff; font-weight:700; font-size:13px; padding:10px 18px; border-radius:8px; text-decoration:none; font-family:inherit;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.5 20.25L8.25 13.5H21.75L18 20.25H4.5Z" fill="#fff" opacity=".7"/><path d="M2.25 20.25L8.25 9.75L11.25 15L8.25 20.25H2.25Z" fill="#fff" opacity=".85"/><path d="M8.25 9.75H15.75L12 3.75H8.25L5.25 9.75H8.25Z" fill="#fff"/></svg>
+          素材フォルダを開く（Googleドライブ）
+        </a>
+      </div>
 
       <div class="reg-form" style="margin-bottom:20px;">
         <div class="f" style="flex:1;"><label>ツール名（配布先によって変更可）</label><input type="text" id="toolNameInput" placeholder="例：居酒屋ポイントカードメーカー" style="width:100%;"></div>
@@ -724,101 +742,116 @@ function snapValue(val, snapPoints, size){
   return best;
 }
 
+// ドラッグ用グローバル管理（リスナー重複防止）
+const _dragState = { active: null };
+function _dragMove(e){
+  const s = _dragState.active;
+  if(!s) return;
+  const {el} = s;
+  const cardRect = card.getBoundingClientRect();
+  const p = getXY(e);
+  let xScreen = p.x - cardRect.left - s.offX;
+  let yScreen = p.y - cardRect.top - s.offY;
+  let x = xScreen / cardScale;
+  let y = yScreen / cardScale;
+  if(el.classList.contains('text-obj')){
+    x = Math.max(-60, Math.min(x, CARD_W - 10));
+    y = Math.max(-10, Math.min(y, CARD_H - 10));
+  } else {
+    const OVERHANG = 40;
+    x = Math.max(-el.offsetWidth + OVERHANG, Math.min(x, CARD_W - OVERHANG));
+    y = Math.max(-el.offsetHeight + OVERHANG, Math.min(y, CARD_H - OVERHANG));
+  }
+  const layer = currentLayer();
+  const pts = getSnapPoints(layer);
+  const guides = [];
+  const snapX = snapValue(x, pts.xs, el.offsetWidth);
+  const snapY = snapValue(y, pts.ys, el.offsetHeight);
+  if(snapX){ x = snapX.snapped; guides.push({axis:'x', pos: snapX.guide}); }
+  if(snapY){ y = snapY.snapped; guides.push({axis:'y', pos: snapY.guide}); }
+  showGuides(card, guides);
+  el.style.left = x+'px'; el.style.top = y+'px';
+  if(e.cancelable) e.preventDefault();
+}
+function _dragEnd(){
+  const s = _dragState.active;
+  if(s){ s.el.classList.remove('dragging'); clearGuides(card); saveSnapshot(); _dragState.active=null; }
+}
+window.addEventListener('mousemove', _dragMove);
+window.addEventListener('mouseup', _dragEnd);
+window.addEventListener('touchmove', _dragMove, {passive:false});
+window.addEventListener('touchend', _dragEnd);
+
 function makeMovable(el){
-  let dragging=false, offX=0, offY=0;
   function onStart(e){
     if(e.target.classList.contains('resize-handle')) return;
     if(el.classList.contains('text-obj') && el.isContentEditable && document.activeElement===el) return;
-    // クリックされた要素がどのレイヤーにいるか自動判定してcurrentFaceを補正
     if(backFace.contains(el) && currentFace !== 'back') setFace('back');
     else if(frontFace.contains(el) && currentFace !== 'front') setFace('front');
     selectObj(el);
-    dragging=true; el.classList.add('dragging');
+    el.classList.add('dragging');
     const r = el.getBoundingClientRect();
     const p = getXY(e);
-    offX = p.x - r.left; offY = p.y - r.top;
+    _dragState.active = { el, offX: p.x - r.left, offY: p.y - r.top };
     if(e.cancelable) e.preventDefault();
   }
-  function onMove(e){
-    if(!dragging) return;
-    const cardRect = card.getBoundingClientRect();
-    const p = getXY(e);
-    let xScreen = p.x - cardRect.left - offX;
-    let yScreen = p.y - cardRect.top - offY;
-    let x = xScreen / cardScale;
-    let y = yScreen / cardScale;
-    // テキストは縁ギリギリまで自由に配置できる（制限なし・表裏共通）
-    if(el.classList.contains('text-obj')){
-      x = Math.max(-60, Math.min(x, CARD_W - 10));
-      y = Math.max(-10, Math.min(y, CARD_H - 10));
-    } else {
-      const OVERHANG = 40;
-      x = Math.max(-el.offsetWidth + OVERHANG, Math.min(x, CARD_W - OVERHANG));
-      y = Math.max(-el.offsetHeight + OVERHANG, Math.min(y, CARD_H - OVERHANG));
-    }
-    // スナップ処理
-    const layer = currentLayer();
-    const pts = getSnapPoints(layer);
-    const guides = [];
-    const snapX = snapValue(x, pts.xs, el.offsetWidth);
-    const snapY = snapValue(y, pts.ys, el.offsetHeight);
-    if(snapX){ x = snapX.snapped; guides.push({axis:'x', pos: snapX.guide}); }
-    if(snapY){ y = snapY.snapped; guides.push({axis:'y', pos: snapY.guide}); }
-    showGuides(card, guides);
-
-    el.style.left = x+'px'; el.style.top = y+'px';
-    if(e.cancelable) e.preventDefault();
-  }
-  function onEnd(){ if(dragging){dragging=false; el.classList.remove('dragging'); clearGuides(card); saveSnapshot();} }
-
   el.addEventListener('mousedown', onStart);
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onEnd);
   el.addEventListener('touchstart', onStart, {passive:false});
-  window.addEventListener('touchmove', onMove, {passive:false});
-  window.addEventListener('touchend', onEnd);
 }
 
+// リサイズ用グローバル管理（リスナー重複防止）
+const _resizeState = { active: null };
+function _resizeMove(e){
+  const s = _resizeState.active;
+  if(!s) return;
+  const dx = (getXY(e).x - s.startX) / cardScale;
+  const newW = Math.max(20, s.startW + dx);
+  const scale = newW / s.startW;
+  const {el, opts} = s;
+  if(opts.type==='qr'){
+    el.style.width = newW+'px';
+    el.style.height = newW+'px';
+  } else if(opts.type==='img'){
+    el.style.width = newW+'px';
+    const img = el.querySelector('img');
+    if(img && img.naturalWidth && img.naturalHeight){
+      el.style.height = (newW * img.naturalHeight / img.naturalWidth)+'px';
+    } else {
+      el.style.height = (s.startH*scale)+'px';
+    }
+  } else if(opts.type==='group'){
+    const newScale = Math.max(0.4, Math.min(2.5, s.startScale*scale));
+    el.dataset.scale = newScale;
+    el.style.transform = 'scale('+newScale+')';
+  } else {
+    el.style.width = Math.max(20, newW)+'px';
+    el.style.height = 'auto';
+  }
+  if(e.cancelable) e.preventDefault();
+}
+function _resizeEnd(){
+  if(_resizeState.active){ _resizeState.active=null; saveSnapshot(); }
+}
+window.addEventListener('mousemove', _resizeMove);
+window.addEventListener('mouseup', _resizeEnd);
+window.addEventListener('touchmove', _resizeMove, {passive:false});
+window.addEventListener('touchend', _resizeEnd);
+
 function makeResizable(el, handle, opts){
-  let resizing=false, startX=0, startW=0, startH=0, startFont=0, startScale=1;
   function onStart(e){
     e.stopPropagation();
     if(e.cancelable) e.preventDefault();
-    resizing=true; startX=getXY(e).x;
-    startW=el.offsetWidth; startH=el.offsetHeight;
-    startFont = parseFloat(getComputedStyle(el).fontSize)||14;
-    startScale = parseFloat(el.dataset.scale||'1');
+    _resizeState.active = {
+      el, opts,
+      startX: getXY(e).x,
+      startW: el.offsetWidth,
+      startH: el.offsetHeight,
+      startFont: parseFloat(getComputedStyle(el).fontSize)||14,
+      startScale: parseFloat(el.dataset.scale||'1')
+    };
   }
-  function onMove(e){
-    if(!resizing) return;
-    const dx = (getXY(e).x - startX) / cardScale;
-    const newW = Math.max(20, startW+dx);
-    const scale = newW/startW;
-    if(opts.type==='qr'){
-      el.style.width = newW+'px';
-      el.style.height = newW+'px';
-    } else if(opts.type==='img'){
-      el.style.width = newW+'px';
-      el.style.height = (startH*scale)+'px';
-    } else if(opts.type==='group'){
-      const newScale = Math.max(0.4, Math.min(2.5, startScale*scale));
-      el.dataset.scale = newScale;
-      el.style.transform = 'scale('+newScale+')';
-    } else {
-      // テキスト: 幅だけ変えて自動折り返し。フォントサイズはそのまま
-      el.style.width = Math.max(20, newW)+'px';
-      el.style.height = 'auto'; // 折り返しに応じて縦が自動伸縮
-    }
-    if(e.cancelable) e.preventDefault();
-  }
-  function onEnd(){ if(resizing){ resizing=false; saveSnapshot(); } }
-
   handle.addEventListener('mousedown', onStart);
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onEnd);
   handle.addEventListener('touchstart', onStart, {passive:false});
-  window.addEventListener('touchmove', onMove, {passive:false});
-  window.addEventListener('touchend', onEnd);
 }
 
 function selectObj(el){
@@ -1023,9 +1056,14 @@ const textTemplateList = [
 
 // テキストエリア↔カード双方向同期
 const textEditArea = document.getElementById('textEditArea');
+function setTextContent(el, text){
+  const handle = el.querySelector('.resize-handle');
+  el.innerText = text;
+  if(handle) el.appendChild(handle);
+}
 textEditArea.addEventListener('input', ()=>{
   if(selectedEl && selectedEl.classList.contains('text-obj')){
-    selectedEl.innerText = textEditArea.value;
+    setTextContent(selectedEl, textEditArea.value);
   }
 });
 // カード上でテキスト編集したらエリアにも反映
@@ -1251,7 +1289,31 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
   const foldGuide = document.getElementById('foldGuide');
   foldGuide.style.display = 'none';
   try{
+    // html2canvasはobject-fit:containを無視するため、キャプチャ前に画像サイズを補正
+    const imgEls = card.querySelectorAll('img');
+    const imgFixes = [];
+    imgEls.forEach(img => {
+      if(img.naturalWidth && img.naturalHeight){
+        const parent = img.parentElement;
+        const pw = parent.offsetWidth;
+        const ph = parent.offsetHeight;
+        const ratio = img.naturalWidth / img.naturalHeight;
+        let tw = pw, th = ph;
+        if(pw / ph > ratio){ tw = ph * ratio; } else { th = pw / ratio; }
+        imgFixes.push({ img, prevW: img.style.width, prevH: img.style.height,
+          prevML: img.style.marginLeft, prevMT: img.style.marginTop });
+        img.style.width = tw+'px';
+        img.style.height = th+'px';
+        img.style.marginLeft = ((pw-tw)/2)+'px';
+        img.style.marginTop = ((ph-th)/2)+'px';
+      }
+    });
     const cardCanvas = await html2canvas(card, {scale:3, backgroundColor:null});
+    // 補正を元に戻す
+    imgFixes.forEach(({img, prevW, prevH, prevML, prevMT})=>{
+      img.style.width = prevW; img.style.height = prevH;
+      img.style.marginLeft = prevML; img.style.marginTop = prevMT;
+    });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({unit:'mm', format:'a4'});
     const cardW=182, cardH=55, gapY=2, rows=5;
