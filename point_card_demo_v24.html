@@ -271,7 +271,7 @@
           </div>
         </div>
         <div class="actions">
-          <button class="primary" id="btnExport" style="flex:1;">PDF書き出し（5面付け）</button>
+          <button class="primary" id="btnExport" style="flex:1;">PDF書き出し（表裏2P・5面付け）</button>
         </div>
         <div class="actions" style="margin-top:6px;">
           <button class="secondary" id="btnUndo" style="flex:1; font-size:11px; color:var(--muted);" disabled>↩ 元に戻す（Ctrl+Z）</button>
@@ -1314,22 +1314,60 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
       img.style.width = prevW; img.style.height = prevH;
       img.style.marginLeft = prevML; img.style.marginTop = prevMT;
     });
+    // 表裏2ページPDF生成
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({unit:'mm', format:'a4'});
-    const cardW=182, cardH=55, gapY=2, rows=5;
-    const totalH = rows*cardH + (rows-1)*gapY;
-    const marginX=(210-cardW)/2, marginY=(297-totalH)/2;
-    const imgData = cardCanvas.toDataURL('image/png');
-    for(let r=0;r<rows;r++){
-      const y = marginY + r*(cardH+gapY);
-      pdf.addImage(imgData,'PNG', marginX, y, cardW, cardH);
+    const exportPdf = new jsPDF({unit:'mm', format:'a4'});
+    const exportW=182, exportH=55, exportGap=2, exportRows=5;
+    const exportTotalH = exportRows*exportH + (exportRows-1)*exportGap;
+    const exportMX=(210-exportW)/2, exportMY=(297-exportTotalH)/2;
+
+    // 表面キャプチャ（既にimgFix補正済みのcardCanvasを1ページ目に使う）
+    const frontImgData = cardCanvas.toDataURL('image/png');
+    for(let r=0;r<exportRows;r++){
+      exportPdf.addImage(frontImgData,'PNG', exportMX, exportMY+r*(exportH+exportGap), exportW, exportH);
     }
-    pdf.save('ポイントカード_'+(currentFace==='front'?'表面':'裏面')+'_5面付け_デモ.pdf');
+
+    // 裏面キャプチャ
+    exportPdf.addPage();
+    const exportFront = document.getElementById('frontFace');
+    const exportBack = document.getElementById('backFace');
+    exportFront.style.display = 'none';
+    exportBack.style.display = '';
+    const backImgEls = card.querySelectorAll('img');
+    const backFixes = [];
+    backImgEls.forEach(img => {
+      if(img.naturalWidth && img.naturalHeight){
+        const parent = img.parentElement;
+        const pw = parent.offsetWidth, ph = parent.offsetHeight;
+        const ratio = img.naturalWidth / img.naturalHeight;
+        let tw = pw, th = ph;
+        if(pw/ph > ratio){ tw = ph*ratio; } else { th = pw/ratio; }
+        backFixes.push({img, prevW:img.style.width, prevH:img.style.height,
+          prevML:img.style.marginLeft, prevMT:img.style.marginTop});
+        img.style.width=tw+'px'; img.style.height=th+'px';
+        img.style.marginLeft=((pw-tw)/2)+'px'; img.style.marginTop=((ph-th)/2)+'px';
+      }
+    });
+    const backCanvas = await html2canvas(card, {scale:3, backgroundColor:null});
+    backFixes.forEach(({img,prevW,prevH,prevML,prevMT})=>{
+      img.style.width=prevW; img.style.height=prevH;
+      img.style.marginLeft=prevML; img.style.marginTop=prevMT;
+    });
+    const backImgData = backCanvas.toDataURL('image/png');
+    for(let r=0;r<exportRows;r++){
+      exportPdf.addImage(backImgData,'PNG', exportMX, exportMY+r*(exportH+exportGap), exportW, exportH);
+    }
+
+    // 元の面に戻す
+    exportFront.style.display = currentFace==='front' ? '' : 'none';
+    exportBack.style.display = currentFace==='back' ? '' : 'none';
+
+    exportPdf.save('ポイントカード_表裏両面_5面付け.pdf');
   }catch(err){
     alert('書き出しに失敗しました: '+err.message);
   }finally{
     foldGuide.style.display = '';
-    btn.textContent='PDF書き出し（5面付け）'; btn.disabled=false;
+    btn.textContent='PDF書き出し（表裏2P・5面付け）'; btn.disabled=false;
   }
 });
 
