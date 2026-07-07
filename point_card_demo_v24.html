@@ -381,12 +381,13 @@
         ① 青いボタンでGoogleドライブを開く<br>
         　→ フォルダを選んで使いたい画像を探す<br>
         　（QRコード・背景素材・装飾バッジなど）<br>
-        ② 画像をダウンロードして保存する<br>
-        　・<b>パソコン</b>：画像を右クリック →「名前を付けて保存」<br>
-        　・<b>携帯</b>：画像を長押し →「画像を保存」またはダウンロードアイコンをタップ<br>
-        ③ 素材を選ぶ欄の「ロゴ」か「画像」タブを開く<br>
-        　→「画像を追加」からダウンロードした画像を選択<br>
-        　→ カード編集画面に画像が表示される
+        ② 使いたい画像を右クリック →「ダウンロード」を選択<br>
+        　・<b>パソコン</b>：ダウンロードフォルダに保存される<br>
+        　・<b>携帯</b>：写真ライブラリに保存される<br>
+        ③ 素材を選ぶ欄から使いたいタブを開いて「画像追加」をタップ<br>
+        　→ ダウンロードした画像を選択するとカード編集画面に表示される<br>
+        　・<b>背景画像として使う場合</b>は必ず「背景」タブの画像追加から選択<br>
+        　・<b>それ以外</b>（ロゴ・装飾など）は該当タブの画像追加から選択
       </div>
       <div style="margin-top:12px;">
         <a href="https://drive.google.com/drive/folders/1_Hw00oCy7jU33axVvdFPdQIbSal2YIDk?usp=sharing" target="_blank" style="display:inline-flex; align-items:center; gap:8px; background:#1a73e8; color:#fff; font-weight:700; font-size:13px; padding:10px 18px; border-radius:8px; text-decoration:none; font-family:inherit;">
@@ -1733,7 +1734,7 @@ function renderTrayGrid(){
       item.addEventListener('click', ()=>{ const el = addImageObj(s.dataURL, 24, 24, 100, 100); selectObj(el); });
       grid.appendChild(item);
     });
-    grid.appendChild(makeUploadTrayItem('画像をアップロード', dataURL => { const el = addImageObj(dataURL, 24, 24, 100, 100); selectObj(el); }));
+    grid.appendChild(makeUploadTrayItem('画像追加', dataURL => { const el = addImageObj(dataURL, 24, 24, 100, 100); selectObj(el); }));
     return;
   }
 
@@ -1755,12 +1756,12 @@ function renderTrayGrid(){
       item.addEventListener('click', ()=>applyBackground(`url(${bg.dataURL}) center/cover no-repeat`));
       grid.appendChild(item);
     });
-    grid.appendChild(makeUploadTrayItem('画像をアップロード', dataURL => applyBackground(`url(${dataURL}) center/cover no-repeat`)));
+    grid.appendChild(makeUploadTrayItem('画像追加', dataURL => applyBackground(`url(${dataURL}) center/cover no-repeat`)));
     return;
   }
 
   if(trayActiveKey==='qr'){
-    grid.appendChild(makeUploadTrayItem('画像をアップロード', dataURL => addQR('generic', 290, 12, 95, dataURL)));
+    grid.appendChild(makeUploadTrayItem('画像追加', dataURL => addQR('generic', 290, 12, 95, dataURL)));
     const item0 = document.createElement('div'); item0.className='tray-item';
     item0.innerHTML = `<div style="width:56px;height:40px;border-radius:4px;background:var(--paper2);border:2px dashed var(--border);margin:0 auto;"></div><div class="nm">空のQR枠</div>`;
     item0.addEventListener('click', ()=>addQR('generic', 290, 12, 95));
@@ -1780,7 +1781,7 @@ function renderTrayGrid(){
   }
 
   // ロゴ（全業態まとめて表示）
-  grid.appendChild(makeUploadTrayItem('画像をアップロード', dataURL => addImageObj(dataURL, 32, 21, 240, 120)));
+  grid.appendChild(makeUploadTrayItem('画像追加', dataURL => addImageObj(dataURL, 32, 21, 240, 120)));
   let anyLogo = false;
   Object.keys(assetStore.logos).forEach(cat=>{
     (assetStore.logos[cat]||[]).forEach(logo=>{
