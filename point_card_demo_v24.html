@@ -1203,6 +1203,11 @@ function setFace(face){
   renderSheet();
   updateExportBtnText();
 }
+// ページ読み込み後にhtml2canvasをバックグラウンドで初期化
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{ html2canvas(card, {scale:1, backgroundColor:null}).catch(()=>{}); }, 1000);
+});
+
 document.getElementById('btnFront').addEventListener('click', ()=>setFace('front'));
 document.getElementById('btnBack').addEventListener('click', ()=>setFace('back'));
 document.getElementById('btnFrontPreview').addEventListener('click', ()=>setFace('front'));
@@ -1302,8 +1307,6 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
   const foldGuide = document.getElementById('foldGuide');
   foldGuide.style.display = 'none';
   try{
-    // 携帯対策：ダミーキャプチャでhtml2canvasを初期化してから本番キャプチャ
-    await html2canvas(card, {scale:1, backgroundColor:null});
     // プレビュー画面からの書き出しに対応：一時的に編集ページを表示してキャプチャ
     const pageEdit = document.getElementById('page-edit');
     const pagePreview = document.getElementById('page-preview');
