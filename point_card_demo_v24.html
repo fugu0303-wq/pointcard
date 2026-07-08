@@ -415,12 +415,19 @@
         <button class="active" id="btnFrontPreview">表面</button>
         <button id="btnBackPreview">裏面</button>
       </div>
+      <div style="font-size:11px; color:var(--muted); text-align:center; margin-top:8px;">▼ 下にスクロールするとPDF書き出し（印刷用画面をファイル保存）ができます</div>
     </div>
     <div class="card">
       <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt" id="previewLabel">A4プレビュー — 表面（見開き名刺サイズ × 5面）</div></div>
-      <button class="primary" id="btnExport" style="width:100%; margin-bottom:10px;">表面をPDF書き出し</button>
       <div class="a4-preview" id="a4Preview"></div>
       <div class="a4-note">5面付けでA4に配置したイメージです。表面・裏面をそれぞれ別PDFで書き出して両面印刷してください。</div>
+      <button class="primary" id="btnExport" style="width:100%; margin-top:10px;">表面をPDF書き出し</button>
+      <div style="font-size:11px; color:var(--muted); line-height:1.8; margin-top:10px; padding:10px; background:var(--paper2); border-radius:6px;">
+        📱 <b>携帯でPDF書き出しする場合：</b><br>
+        ① 1回目の書き出しは画像がずれる場合があります。2回目以降は正常に書き出せます。<br>
+        ② 書き出したPDFを自店のLINE公式アカウントに共有<br>
+        ③ パソコンのLINE公式管理画面のチャットからファイルを受け取り・印刷
+      </div>
       <div class="badge">DEMO BUILD — パーツ独立編集版</div>
     </div>
   </div>
@@ -1314,9 +1321,7 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
     if(wasPreview){
       pageEdit.classList.add('active');
       pagePreview.classList.remove('active');
-      updateCardScale();
-      await new Promise(r => requestAnimationFrame(()=> requestAnimationFrame(r)));
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 400));
     }
     // html2canvasはobject-fit:containを無視するため、キャプチャ前に画像サイズを補正
     const imgEls = card.querySelectorAll('img');
