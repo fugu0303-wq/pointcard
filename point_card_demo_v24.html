@@ -1314,7 +1314,9 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
     if(wasPreview){
       pageEdit.classList.add('active');
       pagePreview.classList.remove('active');
-      await new Promise(r => setTimeout(r, 400));
+      updateCardScale();
+      await new Promise(r => requestAnimationFrame(()=> requestAnimationFrame(r)));
+      await new Promise(r => setTimeout(r, 500));
     }
     // html2canvasはobject-fit:containを無視するため、キャプチャ前に画像サイズを補正
     const imgEls = card.querySelectorAll('img');
