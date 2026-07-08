@@ -1309,7 +1309,7 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
     if(wasPreview){
       pageEdit.classList.add('active');
       pagePreview.classList.remove('active');
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 400));
     }
     // html2canvasはobject-fit:containを無視するため、キャプチャ前に画像サイズを補正
     const imgEls = card.querySelectorAll('img');
@@ -1346,7 +1346,15 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
     for(let r=0;r<exportRows;r++){
       exportPdf.addImage(imgData,'PNG', exportMX, exportMY+r*(exportH+exportGap), exportW, exportH);
     }
-    exportPdf.save('ポイントカード_'+faceName+'_5面付け.pdf');
+    // 携帯対応：別タブで開く、PC：直接ダウンロード
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if(isMobile){
+      const pdfBlob = exportPdf.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+    } else {
+      exportPdf.save('ポイントカード_'+faceName+'_5面付け.pdf');
+    }
   }catch(err){
     alert('書き出しに失敗しました: '+err.message);
   }finally{
