@@ -1293,7 +1293,11 @@ async function exportPdfForFace(targetFace){
   btnF.textContent = targetFace==='front' ? '書き出し中…' : '表面PDF書き出し';
   btnB.textContent = targetFace==='back' ? '書き出し中…' : '裏面PDF書き出し';
   const prevFace = currentFace;
-  if(targetFace !== currentFace) setFace(targetFace);
+  if(targetFace !== currentFace){
+    setFace(targetFace);
+    await new Promise(r => requestAnimationFrame(()=> requestAnimationFrame(r)));
+    await new Promise(r => setTimeout(r, 300));
+  }
   document.querySelectorAll('.obj').forEach(o=>o.classList.remove('selected'));
   const foldGuide = document.getElementById('foldGuide');
   foldGuide.style.display = 'none';
