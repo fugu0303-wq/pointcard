@@ -1302,6 +1302,8 @@ async function exportPdfForFace(targetFace){
   const foldGuide = document.getElementById('foldGuide');
   foldGuide.style.display = 'none';
   try{
+    // 携帯対策：ダミーキャプチャでhtml2canvasを初期化
+    await html2canvas(card, {scale:1, backgroundColor:null});
     const imgEls = card.querySelectorAll('img');
     const imgFixes = [];
     imgEls.forEach(img => {
