@@ -418,9 +418,9 @@
     </div>
     <div class="card">
       <div class="card-hd"><div class="card-hd-bar"></div><div class="card-hd-txt" id="previewLabel">A4プレビュー — 表面（見開き名刺サイズ × 5面）</div></div>
+      <button class="primary" id="btnExport" style="width:100%; margin-bottom:10px;">表面をPDF書き出し</button>
       <div class="a4-preview" id="a4Preview"></div>
       <div class="a4-note">5面付けでA4に配置したイメージです。表面・裏面をそれぞれ別PDFで書き出して両面印刷してください。</div>
-      <button class="primary" id="btnExport" style="width:100%; margin-top:10px;">表面をPDF書き出し</button>
       <div class="badge">DEMO BUILD — パーツ独立編集版</div>
     </div>
   </div>
@@ -1302,6 +1302,15 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
   const foldGuide = document.getElementById('foldGuide');
   foldGuide.style.display = 'none';
   try{
+    // プレビュー画面からの書き出しに対応：一時的に編集ページを表示してキャプチャ
+    const pageEdit = document.getElementById('page-edit');
+    const pagePreview = document.getElementById('page-preview');
+    const wasPreview = pagePreview.classList.contains('active');
+    if(wasPreview){
+      pageEdit.classList.add('active');
+      pagePreview.classList.remove('active');
+      await new Promise(r => setTimeout(r, 100));
+    }
     // html2canvasはobject-fit:containを無視するため、キャプチャ前に画像サイズを補正
     const imgEls = card.querySelectorAll('img');
     const imgFixes = [];
@@ -1323,6 +1332,11 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
       img.style.width=prevW; img.style.height=prevH;
       img.style.marginLeft=prevML; img.style.marginTop=prevMT;
     });
+    // プレビューに戻す
+    if(wasPreview){
+      pagePreview.classList.add('active');
+      pageEdit.classList.remove('active');
+    }
     const { jsPDF } = window.jspdf;
     const exportPdf = new jsPDF({unit:'mm', format:'a4'});
     const exportW=182, exportH=55, exportGap=2, exportRows=5;
